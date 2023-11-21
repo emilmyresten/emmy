@@ -1,4 +1,6 @@
 (executable
  (public_name interp)
  (name main)
+ (modes byte)
+ (modules main)
  (libraries interp))
