@@ -10,13 +10,17 @@ let is_digit char =
   | x when x > 47 && x < 58 -> true
   | _ -> false
 
-  let is_letter char = 
-    match int_of_char char with
-    | x when x > 96 && x < 123 -> true
-    | _ -> false
+let is_letter char = 
+  match int_of_char char with
+  | x when x > 96 && x < 123 -> true
+  | _ -> false
 
 let is_whitespace = function
   | ' ' | '\n' | '\r' | '\t' -> true
+  | _ -> false
+
+let is_symbol = function
+  | '(' | ')' | '+' | '-' | '*' -> true
   | _ -> false
 
 let get_as_int char = int_of_char char - 48
@@ -30,7 +34,6 @@ let incr_col () = position.col <- position.col + 1
 let reset_pos () = position.row <- 0; position.col <- -1
 
 let reified_position () = 
-  Printf.printf "reify at %d %d\n" position.row position.col;
   Position (position.row, position.col)
 
 let lex_number chars = 
@@ -49,7 +52,7 @@ let lex_string chars =
 
 let lex_identifier_or_keyword chars = (* allow every symbol except white-space in identifier. *)
   let rec aux acc rem = match rem with
-  | h :: t when is_whitespace h -> ((acc, reified_position ()), t)
+  | h :: t when is_whitespace h || is_symbol h -> ((acc, reified_position ()), h :: t)
   | [] -> ((acc, reified_position ()), [])
   | h :: t -> aux (acc ^ (String.make 1 h)) t  
   in let ((id, pos), remaining) = aux "" chars in

@@ -20,13 +20,13 @@ let rec do_parse chars =
   | Token (DEF, _) -> parse_def_expr remaining
   | Token (INTEGER_TOKEN v, _) -> (Integer v, remaining)
   | Token (STRING_TOKEN str, _) -> (String str, remaining)
-  | Token (UNKNOWN c, Position (row, col)) -> let err_msg = Printf.sprintf "Found %s at %d, %d\n" (string_of_token_type (UNKNOWN c)) row col in raise (Failure err_msg)
-  (* | Token (STRING_TOKEN str, _) *)
-  | tk -> raise (Failure (Printf.sprintf "Unexpected token %s" (string_of_token tk)))
+  | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, remaining)
+  | Token (UNKNOWN c, Position (row, col)) -> let err_msg = Printf.sprintf "Found %s at %d, %d\n" (string_of_token_type (UNKNOWN c)) row col in failwith err_msg
+  | tk -> failwith (Printf.sprintf "Unexpected token %s" (string_of_token tk))
 
 and parse_math_expr resolve chars =
   let (lhs, chars) = do_parse chars in
-  let (rhs, chars) = do_parse chars in
+  let (rhs, chars) = do_parse chars in  
   let chars = eat RPAREN chars in
   match resolve with
   | PLUS -> (Binop (Plus, lhs, rhs), chars)
