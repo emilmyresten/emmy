@@ -1,3 +1,4 @@
+open Printf
 open Expressions
 open Tokens
 open Lexer
@@ -9,7 +10,7 @@ let eat expected remaining =
   | Token (tk, _) when tk = expected -> remaining
   | _ -> 
     let (row, col) = get_row_col token in
-    let err_msg = Printf.sprintf "Expected token %s, found token %s at %d, %d\n" (string_of_token_type expected) (string_of_token token) row col in
+    let err_msg = sprintf "Expected token %s, found token %s at %d, %d\n" (string_of_token_type expected) (string_of_token token) row col in
     raise (Failure err_msg)
 
 let rec do_parse chars =
@@ -18,11 +19,12 @@ let rec do_parse chars =
   | Token (LPAREN, _) -> do_parse remaining
   | Token ((PLUS | MINUS | MULTIPLY) as tk, _) -> parse_math_expr tk remaining
   | Token (DEF, _) -> parse_def_expr remaining
+  | Token (FN, _) -> parse_fn_expr remaining
   | Token (INTEGER_TOKEN v, _) -> (Integer v, remaining)
   | Token (STRING_TOKEN str, _) -> (String str, remaining)
   | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, remaining)
-  | Token (UNKNOWN c, Position (row, col)) -> let err_msg = Printf.sprintf "Found %s at %d, %d\n" (string_of_token_type (UNKNOWN c)) row col in failwith err_msg
-  | tk -> failwith (Printf.sprintf "Unexpected token %s" (string_of_token tk))
+  | Token (UNKNOWN c, Position (row, col)) -> let err_msg = sprintf "Found %s at %d, %d\n" (string_of_token_type (UNKNOWN c)) row col in failwith err_msg
+  | tk -> failwith (sprintf "Unexpected token %s" (string_of_token tk))
 
 and parse_math_expr resolve chars =
   let (lhs, chars) = do_parse chars in
@@ -38,10 +40,21 @@ and parse_def_expr chars =
   let (id, chars) = 
     match (next_token chars) with 
     | (Token (IDENTIFIER_TOKEN id, _), chars) -> (id, chars) 
-    | tk -> failwith (Printf.sprintf "Expected Identifier, found %s " (string_of_token (fst tk))) in
+    | tk -> failwith (sprintf "Expected Identifier, found %s " (string_of_token (fst tk))) in
   let (expr, chars) = do_parse chars in
   let chars = eat RPAREN chars in 
   (Def (id, expr), chars)
+
+and parse_fn_expr chars =
+  let (param, chars) = next_token chars in
+  let chars = eat ARROW chars in
+  let (expr, chars) = do_parse chars in
+  let chars = eat RPAREN chars in
+    match param with 
+    | Token (IDENTIFIER_TOKEN id, _) -> (Fn ([id], expr), chars)
+    | _ -> failwith (sprintf "Expected parameter list, found %s" (string_of_token param))
+  
+
 
 let parse chars =
   let (ast, rem) = do_parse chars in 
