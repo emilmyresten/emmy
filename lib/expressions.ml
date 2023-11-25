@@ -1,17 +1,16 @@
 
-type binop = Plus
-           | Minus
-           | Multiply
 
-type expression = Binop of binop * expression * expression 
-                | Def of string * expression
+
+type expression = Def of string * expression
                 | Fn of string list * expression
+                | FnInvoke of string * expression list (* the list of arguments. The evaluation strategy is eager. Call-by-value *)
                 | Integer of int
                 | String of string
                 | Identifier of string
+                | Parameter of string (* Unrealized but bound in function body. *)
                 | Unit
                 
 let rec is_value expr = match expr with
-  | Integer _ | String _ | Unit -> true
+  | Integer _ | String _ | Unit | Parameter _ -> true
   | Fn (_, expr) when is_value expr -> true
   | _ -> false 
