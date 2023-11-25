@@ -16,10 +16,13 @@ let rec do_parse chars =
   let (token, chars) = next_token chars in
   match token with 
   | Token (LPAREN, _) -> 
-   (match peek chars with
-    | DEF -> let chars = eat DEF chars in parse_def_expr chars
-    | FN -> let chars = eat FN chars in parse_fn_expr chars
-    | _ -> parse_fn_invoke_expr chars)
+   let (expr, chars) = 
+      (match peek chars with
+        | DEF -> let chars = eat DEF chars in parse_def_expr chars
+        | FN -> let chars = eat FN chars in parse_fn_expr chars
+        | _ -> parse_fn_invoke_expr chars) in
+    let chars = eat RPAREN chars in 
+    (expr, chars)
   | Token (INTEGER_TOKEN v, _) -> (Integer v, chars)
   | Token (STRING_TOKEN str, _) -> (String str, chars)
   | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, chars)
@@ -32,24 +35,19 @@ and parse_def_expr chars =
     | (Token (IDENTIFIER_TOKEN id, _), chars) -> (id, chars) 
     | tk -> failwith (sprintf "Expected Identifier, found %s " (string_of_token (fst tk))) in
   let (expr, chars) = do_parse chars in
-  let chars = eat RPAREN chars in 
   (Def (id, expr), chars)
 
 and parse_fn_expr chars =
   let (param, chars) = next_token chars in
   let chars = eat ARROW chars in
   let (expr, chars) = do_parse chars in
-  let chars = eat RPAREN chars in
     match param with 
     | Token (IDENTIFIER_TOKEN id, _) -> (Fn ([id], expr), chars)
     | _ -> failwith (sprintf "Expected parameter list, found %s" (string_of_token param))
 and parse_fn_invoke_expr chars =
-  let (id, chars) = do_parse chars in
+  let (to_apply, chars) = do_parse chars in
   let (args, chars) = do_parse chars in
-  let chars = eat RPAREN chars in
-  match id with 
-  | Identifier id -> (FnInvoke (id, [args]), chars)
-  | _ -> failwith "a function invocation must start with an Identifier."
+  (FnInvoke (to_apply, [args]), chars)
   
   
 

@@ -15,8 +15,14 @@ module Char = struct
     | _ -> false
   
   let is_symbol = function
-    | '(' | ')' | '+' | '-' | '*' -> true
+    | '(' | ')' -> true
     | _ -> false
 
   let as_int char = int_of_char char - 48
+end
+
+module List = struct
+  include List
+  let overlap a b = List.filter (fun m -> (List.mem m a)) b
+  let unique_right a b = List.filter (fun m -> not (List.mem m a)) b
 end

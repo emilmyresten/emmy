@@ -3,7 +3,7 @@
 
 type expression = Def of string * expression
                 | Fn of string list * expression
-                | FnInvoke of string * expression list (* the list of arguments. The evaluation strategy is eager. Call-by-value *)
+                | FnInvoke of expression * expression list (* the list of arguments. The evaluation strategy is eager. Call-by-value *)
                 | Integer of int
                 | String of string
                 | Identifier of string
