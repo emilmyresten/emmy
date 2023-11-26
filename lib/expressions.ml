@@ -1,6 +1,7 @@
 
 
-type binop = Plus
+type binop = Plus 
+           | Minus
 
 type expression = Def of string * expression
                 | Fn of string list * expression

@@ -53,6 +53,7 @@ let rec next_token chars =
   | ')' :: t -> (Token (RPAREN, reified_position ()), t)
   | '-' :: '>' :: t -> (Token (ARROW, reified_position ()), t)
   | '+' :: t -> (Token (PLUS, reified_position ()), t)
+  | '-' :: t -> (Token (MINUS, reified_position ()), t)
   | '"' :: t -> lex_string (t) 
   | h :: t when Char.is_letter h -> lex_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> lex_number (h :: t)
@@ -71,6 +72,7 @@ let rec peek chars =
   | ')' :: _ -> RPAREN
   | '-' :: '>' :: _ -> ARROW
   | '+' :: _ -> PLUS
+  | '-' :: _ -> MINUS
   | '"' :: t -> peek_string (t) 
   | h :: t when Char.is_letter h -> peek_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> peek_number (h :: t)

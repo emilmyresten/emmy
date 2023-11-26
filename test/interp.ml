@@ -103,6 +103,13 @@ let suite =
     and expected_result = "Integer 2"
     and expected_context = "inc = (Function x -> (+ Identifier x Integer 1))\n" in
     addition, `Quick, simple_interp_test ~expected_context addition expected_result); 
+
+    (let subtraction = 
+      "(def dec (fn x -> (- x 1))); 
+      (dec 1)" 
+    and expected_result = "Integer 0"
+    and expected_context = "dec = (Function x -> (- Identifier x Integer 1))\n" in
+    subtraction, `Quick, simple_interp_test ~expected_context subtraction expected_result); 
   ]
 
 let interp_tests () =

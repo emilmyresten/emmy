@@ -13,6 +13,7 @@ and string_of_params params = (List.fold_left (fun acc m -> acc ^ m ^ " ") "" pa
 and string_of_args args = (List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" args)
 and string_of_binop binop = match binop with
   | (Plus, lhs, rhs) -> sprintf "(+ %s %s)" (string_of_expr lhs) (string_of_expr rhs)
+  | (Minus, lhs, rhs) -> sprintf "(- %s %s)" (string_of_expr lhs) (string_of_expr rhs)
 and string_of_expr expr = match expr with
   | Def (id, expr) ->  sprintf "(def %s %s)" id (string_of_expr expr)
   | Identifier id -> sprintf "Identifier %s" id

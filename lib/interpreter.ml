@@ -90,6 +90,7 @@ let rec step expr ctx =
 and step_binop (op, lhs, rhs) ctx = 
   match (op, lhs, rhs) with
   | (Plus, Integer lhs, Integer rhs) -> (Integer (lhs + rhs), ctx)
+  | (Minus, Integer lhs, Integer rhs) -> (Integer (lhs - rhs), ctx)
   | _ -> failwith "Expected Binary operator, found other" 
         
 

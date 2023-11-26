@@ -21,6 +21,7 @@ let rec do_parse chars =
         | DEF -> let chars = eat DEF chars in parse_def_expr chars
         | FN -> let chars = eat FN chars in parse_fn_expr chars
         | PLUS -> let chars = eat PLUS chars in parse_binop_expr Plus chars
+        | MINUS -> let chars = eat MINUS chars in parse_binop_expr Minus chars
         | _ -> parse_fn_invoke_expr chars) in
     let chars = eat RPAREN chars in 
     (expr, chars)
