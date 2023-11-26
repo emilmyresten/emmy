@@ -55,6 +55,12 @@ let suite =
     and expected_result = "Integer 3" in 
     scoping, `Quick, simple_interp_test scoping expected_result); 
 
+    (let scoping = 
+      "(def alpha_converted (fn x -> (fn y -> (fn z -> x))));
+      (((alpha_converted 1) 2) 3)"
+    and expected_result = "Integer 1" in 
+    scoping, `Quick, simple_interp_test scoping expected_result); 
+
     (let multi_arity = "(def multi_arity (fn x y z -> z))" 
     and expected_result = "Unit" in 
     multi_arity, `Quick, simple_interp_test multi_arity expected_result); 
@@ -64,6 +70,19 @@ let suite =
       (multi_arity 1 2 3)" 
     and expected_result = "Integer 1" in 
     multi_arity, `Quick, simple_interp_test multi_arity expected_result); 
+
+    (let multi_arity = 
+      "(def multi_arity (fn -> ((fn x y -> x) 1 2))); 
+      (multi_arity)" 
+    and expected_result = "Integer 1" in 
+    multi_arity, `Quick, simple_interp_test multi_arity expected_result); 
+
+    (let arity_0 = 
+      "(def arity_0 (fn -> 1)); 
+      (arity_0)" 
+    and expected_result = "Integer 1"
+    and expected_context = "arity_0 = (Function -> Integer 1)\n" in
+    arity_0, `Quick, simple_interp_test ~expected_context arity_0 expected_result); 
   ]
 
 let lexer_tests () =
