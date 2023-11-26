@@ -3,4 +3,4 @@
  (name main)
  (modes byte)
  (modules main)
- (libraries interp))
+ (libraries interp unix))
