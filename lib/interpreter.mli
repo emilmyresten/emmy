@@ -2,4 +2,4 @@ val eval : Expressions.expression -> (string * Expressions.expression) list -> E
 
 val string_of_val : Expressions.expression -> string
 
-val print_context : (string * Expressions.expression) list -> unit
+val string_of_context : (string * Expressions.expression) list -> string
