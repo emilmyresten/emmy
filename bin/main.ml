@@ -8,7 +8,7 @@ let rec loop ctx =
     let (eval, ctx) = let ast = Parser.parse read in Interpreter.eval ast ctx in
     let _print = Printf.printf "%s\n" (Interpreter.string_of_val eval) in
     print_endline "Context:";
-    Interpreter.print_context ctx;
+    print_endline (Interpreter.string_of_context ctx);
     loop ctx
   with e -> print_endline (Printexc.to_string e); loop ctx
 

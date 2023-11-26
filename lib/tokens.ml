@@ -10,9 +10,6 @@ type token_position = Position of int * int
 
 type token_type = LPAREN
                 | RPAREN 
-                | PLUS
-                | MINUS 
-                | MULTIPLY
                 | DEF
                 | FN
                 | ARROW
@@ -30,9 +27,6 @@ let get_position = function
 let string_of_token_type = function
   | LPAREN -> "("
   | RPAREN -> ")"
-  | PLUS -> "+"
-  | MINUS -> "-"
-  | MULTIPLY -> "*"
   | DEF -> "DEF"
   | FN -> "FN"
   | ARROW -> "->"

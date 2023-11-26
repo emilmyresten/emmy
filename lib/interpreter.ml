@@ -18,7 +18,7 @@ and string_of_expr e = match e with
   | Identifier id -> sprintf "Identifier %s" id
   | v -> string_of_val v
 
-let print_context ctx = List.iter (fun (k, v) -> printf "%s = %s\n" k (string_of_val v)) ctx
+let string_of_context ctx = List.fold_left (fun a (k, v) -> a ^ (sprintf "%s = %s\n" k (string_of_val v))) "" ctx
 
 let get_from_ctx id ctx = try (List.assoc id ctx) with _ -> failwith (sprintf "Unbound identifier %s" id)
 
