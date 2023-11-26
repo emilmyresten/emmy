@@ -2,6 +2,8 @@
 
 type binop = Plus 
            | Minus
+           | Times
+           | Division
 
 type expression = Def of string * expression
                 | Fn of string list * expression

@@ -110,6 +110,20 @@ let suite =
     and expected_result = "Integer 0"
     and expected_context = "dec = (Function x -> (- Identifier x Integer 1))\n" in
     subtraction, `Quick, simple_interp_test ~expected_context subtraction expected_result); 
+
+    (let multiplication = 
+      "(def multiply (fn x -> (* x 2))); 
+      (multiply 2)" 
+    and expected_result = "Integer 4"
+    and expected_context = "multiply = (Function x -> (* Identifier x Integer 2))\n" in
+    multiplication, `Quick, simple_interp_test ~expected_context multiplication expected_result); 
+
+    (let division = 
+      "(def divide (fn x -> (/ x 2))); 
+      (divide 2)" 
+    and expected_result = "Integer 1"
+    and expected_context = "divide = (Function x -> (/ Identifier x Integer 2))\n" in
+    division, `Quick, simple_interp_test ~expected_context division expected_result); 
   ]
 
 let interp_tests () =

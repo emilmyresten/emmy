@@ -80,18 +80,24 @@ let rec step expr ctx =
     | _ -> failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
   | FnInvoke (to_apply, args) when is_value to_apply -> (FnInvoke (to_apply, (List.map (fun m -> fst (step m ctx)) args)), ctx)
   | FnInvoke (to_apply, args) -> (FnInvoke (fst (step to_apply ctx), args), ctx)
-  | Binop (op, lhs, rhs) when is_value lhs && is_value rhs -> step_binop (op, lhs, rhs) ctx
+  | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
   | Binop (op, lhs, rhs) when is_value lhs -> (Binop (op, lhs, fst (step rhs ctx)), ctx)
   | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
   | Integer _ -> (expr, ctx)
   | String _ -> (expr, ctx)
   | Identifier id -> let value = get_from_ctx id ctx in (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
-and step_binop (op, lhs, rhs) ctx = 
-  match (op, lhs, rhs) with
-  | (Plus, Integer lhs, Integer rhs) -> (Integer (lhs + rhs), ctx)
-  | (Minus, Integer lhs, Integer rhs) -> (Integer (lhs - rhs), ctx)
-  | _ -> failwith "Expected Binary operator, found other" 
+and step_binop expr ctx = 
+  match expr with
+  (* Numbers *)
+  | Binop (Plus, Integer lhs, Integer rhs) -> (Integer (lhs + rhs), ctx)
+  | Binop (Minus, Integer lhs, Integer rhs) -> (Integer (lhs - rhs), ctx)
+  | Binop (Times, Integer lhs, Integer rhs) -> (Integer (lhs * rhs), ctx)
+  | Binop (Division, Integer lhs, Integer rhs) -> (Integer (lhs / rhs), ctx)
+  (* Strings *)
+  | Binop (Plus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
+  | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
+  | _ -> failwith (sprintf "Could not execute binary operation on %s." (string_of_expr expr))
         
 
 

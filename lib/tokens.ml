@@ -15,6 +15,8 @@ type token_type = LPAREN
                 | ARROW
                 | PLUS
                 | MINUS
+                | TIMES
+                | DIVISION
                 | INTEGER_TOKEN of int
                 | STRING_TOKEN of string
                 | IDENTIFIER_TOKEN of string
@@ -34,6 +36,8 @@ let string_of_token_type = function
   | ARROW -> "->"
   | PLUS -> "+"
   | MINUS -> "-"
+  | TIMES -> "*"
+  | DIVISION -> "/"
   | INTEGER_TOKEN v -> string_of_int v 
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
