@@ -65,6 +65,7 @@ and alpha_convert bindings replace expr =
     let new_params = (List.map (fun (_, v) -> v) new_replace) @ bind in
     let new_bindings = new_params @ bind @ bindings in
     Fn (new_params, alpha_convert new_bindings new_replace expr)
+  | FnInvoke (to_apply, args) -> FnInvoke (alpha_convert bindings replace to_apply, List.map (fun arg -> alpha_convert bindings replace arg) args)
   | _ -> expr
 
 
@@ -75,7 +76,7 @@ let rec step expr ctx =
   match expr with
   | Def (id, expr) when is_value expr -> (Unit, (id, expr) :: ctx)
   | Def (id, expr) -> let (stepped, new_ctx) = step expr ctx in (Def (id, stepped), new_ctx)
-  | Fn (params, expr) -> (alpha_convert [] [] (Fn (params, expr)), ctx)
+  | Fn (params, expr) -> (alpha_convert params [] (Fn (params, expr)), ctx)
   | FnInvoke (to_apply, args) when is_value to_apply && List.for_all (fun arg -> is_value arg) args -> 
     (match to_apply with
     | Fn (params, expr) -> 

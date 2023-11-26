@@ -52,13 +52,19 @@ let suite =
     (let return_fn = 
       "(def id (fn -> (fn y -> y))); 
       (id)"
-    and expected_result = "(Function y -> Identifier y)" in 
+    and expected_result = "(Function y#398 -> Identifier y#398)" in 
     return_fn, `Quick, simple_interp_test return_fn expected_result); 
 
     (let scoping = 
       "(def alpha_converted (fn x -> (fn x -> (fn x -> x))));
       (((alpha_converted 1) 2) 3)"
     and expected_result = "Integer 3" in 
+    scoping, `Quick, simple_interp_test scoping expected_result); 
+
+    (let scoping = 
+      "(def alpha_converted (fn x -> (fn x -> x)));
+      ((alpha_converted 1) 2)"
+    and expected_result = "Integer 2" in 
     scoping, `Quick, simple_interp_test scoping expected_result); 
 
     (let scoping = 

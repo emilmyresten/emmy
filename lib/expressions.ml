@@ -10,6 +10,5 @@ type expression = Def of string * expression
                 | Unit
                 
 let is_value expr = match expr with
-  | Integer _ | String _ | Unit -> true
-  | Fn (_, _) -> true
+  | Integer _ | String _ | Unit | Fn (_, _) -> true
   | _ -> false 
