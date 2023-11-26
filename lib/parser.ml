@@ -38,16 +38,27 @@ and parse_def_expr chars =
   (Def (id, expr), chars)
 
 and parse_fn_expr chars =
-  let (param, chars) = next_token chars in
+  let rec get_params_aux params_acc chars =
+    (match peek chars with
+    | IDENTIFIER_TOKEN _ -> 
+        (let (param, chars) = next_token chars in
+          match param with
+          | Token (IDENTIFIER_TOKEN id, _) -> get_params_aux (id :: params_acc) chars
+          | _ -> failwith ("Peek said Identifier, Next gave something else in parse_fn_expr."))
+    | _ -> (List.rev params_acc, chars)) in
+  let (params, chars) = get_params_aux [] chars in
   let chars = eat ARROW chars in
   let (expr, chars) = do_parse chars in
-    match param with 
-    | Token (IDENTIFIER_TOKEN id, _) -> (Fn ([id], expr), chars)
-    | _ -> failwith (sprintf "Expected parameter list, found %s" (string_of_token param))
+  (Fn (params, expr), chars)
+  
 and parse_fn_invoke_expr chars =
+  let rec get_args_aux args_acc chars =
+    (match peek chars with
+      | RPAREN -> (List.rev args_acc, chars) (* we want to keep parsing the arguments until we hit the closing bracket of the function invocation. *)
+      | _ -> (let (arg, chars) = do_parse chars in get_args_aux (arg :: args_acc) chars)) in
   let (to_apply, chars) = do_parse chars in
-  let (args, chars) = do_parse chars in
-  (FnInvoke (to_apply, [args]), chars)
+  let (args, chars) = get_args_aux [] chars in
+  (FnInvoke (to_apply, args), chars)
   
   
 

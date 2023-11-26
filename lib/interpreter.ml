@@ -30,11 +30,19 @@ let rec get_unique_name p bindings =
 else
     name_attempt
 
-let rec beta_reduce param_id arg expr =
+let rec beta_reduce param_ids args expr =
   match expr with
-  | Parameter id -> if id = param_id then arg else expr
-  | Def (id, expr) -> Def (id, beta_reduce param_id arg expr)
-  | Fn (params, expr) -> Fn (params, beta_reduce param_id arg expr)
+  | Parameter id -> if List.mem id param_ids then 
+    let param_position_opt = List.find_index (fun m -> m = id) param_ids in
+      (match param_position_opt with
+        | Some pos -> 
+          (match (List.nth_opt args pos) with
+            | Some elem -> elem
+            | None -> failwith "Wrong arity!")
+        | None -> failwith "Parameter id is member of the parameter list, but couldn't find index during beta-reduction.")
+   else expr
+  | Def (id, expr) -> Def (id, beta_reduce param_ids args expr)
+  | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
   | _ -> expr
 and alpha_convert bindings replace expr = 
   (* [bindings: list of seen bindings.
@@ -57,15 +65,17 @@ and alpha_convert bindings replace expr =
   | _ -> expr
 
 
+let map_of_params params = List.map (fun p -> (p, Parameter p)) params
+
 let rec step expr ctx =  
   match expr with
   | Def (id, expr) when is_value expr -> (Unit, (id, expr) :: ctx)
   | Def (id, expr) -> let (stepped, new_ctx) = step expr ctx in (Def (id, stepped), new_ctx)
   | Fn (params, expr) when is_value expr -> (Fn (params, expr), ctx)
-  | Fn (params, expr) -> let step_ctx = (List.hd params, Parameter (List.hd params)) :: ctx in (alpha_convert [] [] (Fn (params, fst (step expr step_ctx))), ctx)
-  | FnInvoke (to_apply, args) when is_value to_apply && is_value (List.hd args) -> 
+  | Fn (params, expr) -> let step_ctx = map_of_params params @ ctx in (alpha_convert [] [] (Fn (params, fst (step expr step_ctx))), ctx)
+  | FnInvoke (to_apply, args) when is_value to_apply && List.for_all (fun arg -> is_value arg) args -> 
     (match to_apply with
-    | Fn (params, expr) -> (beta_reduce (List.hd params) (List.hd args) expr, ctx)
+    | Fn (params, expr) -> (beta_reduce params args expr, ctx)
     | _ -> failwith (sprintf "%s is not a function." (string_of_val to_apply)))
   | FnInvoke (to_apply, args) when is_value to_apply -> (FnInvoke (to_apply, (List.map (fun m -> fst (step m ctx)) args)), ctx)
   | FnInvoke (to_apply, args) -> (FnInvoke (fst (step to_apply ctx) , args), ctx)
