@@ -69,6 +69,7 @@ and alpha_convert bindings replace expr =
 
 
 let map_of_params params = List.map (fun p -> (p, Identifier p)) params
+let check_arity params args = List.length (args) = List.length (params)
 
 let rec step expr ctx =  
   match expr with
@@ -78,8 +79,11 @@ let rec step expr ctx =
   | FnInvoke (to_apply, args) when is_value to_apply && List.for_all (fun arg -> is_value arg) args -> 
     (match to_apply with
     | Fn (params, expr) -> 
-      let (stepped, _) = step expr (map_of_params params @ ctx) in
-      (beta_reduce params args stepped, ctx)
+      if check_arity params args then 
+        let (stepped, _) = step expr (map_of_params params @ ctx) in
+        (beta_reduce params args stepped, ctx)
+      else
+        failwith (sprintf "Wrong arity: function expected %d args, received %d." (List.length params) (List.length args))
     | _ -> failwith (sprintf "%s is not a function." (string_of_val to_apply)))
   | FnInvoke (to_apply, args) when is_value to_apply -> (FnInvoke (to_apply, (List.map (fun m -> fst (step m ctx)) args)), ctx)
   | FnInvoke (to_apply, args) -> (FnInvoke (fst (step to_apply ctx), args), ctx)

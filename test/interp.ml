@@ -49,6 +49,12 @@ let suite =
     and expected_result = "Integer 1" in 
     hofs, `Quick, simple_interp_test hofs expected_result); 
 
+    (let return_fn = 
+      "(def id (fn -> (fn y -> y))); 
+      (id)"
+    and expected_result = "(Function y -> Identifier y)" in 
+    return_fn, `Quick, simple_interp_test return_fn expected_result); 
+
     (let scoping = 
       "(def alpha_converted (fn x -> (fn x -> (fn x -> x))));
       (((alpha_converted 1) 2) 3)"
@@ -85,9 +91,9 @@ let suite =
     arity_0, `Quick, simple_interp_test ~expected_context arity_0 expected_result); 
   ]
 
-let lexer_tests () =
+let interp_tests () =
   Alcotest.run "Interp" [ 
     "E2E", suite 
     ]
 
-let () = lexer_tests ()
+let () = interp_tests ()
