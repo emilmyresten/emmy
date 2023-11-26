@@ -20,6 +20,7 @@ let rec do_parse chars =
       (match peek chars with
         | DEF -> let chars = eat DEF chars in parse_def_expr chars
         | FN -> let chars = eat FN chars in parse_fn_expr chars
+        | PLUS -> let chars = eat PLUS chars in parse_binop_expr Plus chars
         | _ -> parse_fn_invoke_expr chars) in
     let chars = eat RPAREN chars in 
     (expr, chars)
@@ -59,7 +60,11 @@ and parse_fn_invoke_expr chars =
   let (to_apply, chars) = do_parse chars in
   let (args, chars) = get_args_aux [] chars in
   (FnInvoke (to_apply, args), chars)
-  
+and parse_binop_expr op chars =
+  let (lhs, chars) = do_parse chars in
+  let (rhs, chars) = do_parse chars in
+  (Binop (op, lhs, rhs), chars)
+
   
 
 

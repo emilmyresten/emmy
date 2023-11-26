@@ -1,26 +1,10 @@
 open Printf
+open Pprint
 open Extensions
 open Expressions
 
 let () = Random.init 0
 
-let rec string_of_val v = 
-  match v with
-  | Integer v -> sprintf "Integer %d" v
-  | String str -> sprintf "String %s" str
-  | Unit -> "Unit"
-  | Fn (params, expr) -> sprintf "(Function %s-> %s)" (string_of_params params) (string_of_expr expr) 
-  | FnInvoke (to_apply, args) -> sprintf "%s %s" (string_of_expr to_apply) (string_of_args args)
-  | Identifier id -> id
-  | _ -> failwith (sprintf "Expected value, found %s" (string_of_expr v))
-and string_of_params params = (List.fold_left (fun acc m -> acc ^ m ^ " ") "" params)
-and string_of_args args = (List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" args)
-and string_of_expr e = match e with
-  | Def (id, expr) ->  sprintf "(def %s %s)" id (string_of_expr expr)
-  | Identifier id -> sprintf "Identifier %s" id
-  | v -> string_of_val v
-
-let string_of_context ctx = List.fold_left (fun a (k, v) -> a ^ (sprintf "%s = %s\n" k (string_of_val v))) "" ctx
 
 let get_from_ctx id ctx = try (List.assoc id ctx) with _ -> failwith (sprintf "Unbound identifier %s in context %s" id (string_of_context ctx))
 
@@ -46,7 +30,11 @@ let rec beta_reduce param_ids args expr =
   | Def (id, expr) -> Def (id, beta_reduce param_ids args expr)
   | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
   | FnInvoke (to_apply, fn_args) -> FnInvoke (to_apply, List.map (fun arg -> beta_reduce param_ids args arg) fn_args)
-  | _ -> expr
+  | Binop (op, lhs, rhs) -> Binop (op, (beta_reduce param_ids args lhs), (beta_reduce param_ids args rhs))
+  | Integer v -> Integer v
+  | String str -> String str
+  | Unit -> Unit
+  
 and alpha_convert bindings replace expr = 
   (* [bindings: list of seen bindings.
       replace: look in this associative list/map to find replacement names for the current.]*)
@@ -66,7 +54,11 @@ and alpha_convert bindings replace expr =
     let new_bindings = new_params @ bind @ bindings in
     Fn (new_params, alpha_convert new_bindings new_replace expr)
   | FnInvoke (to_apply, args) -> FnInvoke (alpha_convert bindings replace to_apply, List.map (fun arg -> alpha_convert bindings replace arg) args)
-  | _ -> expr
+  | Binop (op, lhs, rhs) -> Binop (op, (alpha_convert bindings replace lhs), (alpha_convert bindings replace rhs))
+  | Integer v -> Integer v
+  | String str -> String str
+  | Unit -> Unit
+
 
 
 let map_of_params params = List.map (fun p -> (p, Identifier p)) params
@@ -85,13 +77,21 @@ let rec step expr ctx =
         (beta_reduce params args stepped, ctx)
       else
         failwith (sprintf "Wrong arity: function expected %d args, received %d." (List.length params) (List.length args))
-    | _ -> failwith (sprintf "%s is not a function." (string_of_val to_apply)))
+    | _ -> failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
   | FnInvoke (to_apply, args) when is_value to_apply -> (FnInvoke (to_apply, (List.map (fun m -> fst (step m ctx)) args)), ctx)
   | FnInvoke (to_apply, args) -> (FnInvoke (fst (step to_apply ctx), args), ctx)
+  | Binop (op, lhs, rhs) when is_value lhs && is_value rhs -> step_binop (op, lhs, rhs) ctx
+  | Binop (op, lhs, rhs) when is_value lhs -> (Binop (op, lhs, fst (step rhs ctx)), ctx)
+  | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
   | Integer _ -> (expr, ctx)
   | String _ -> (expr, ctx)
   | Identifier id -> let value = get_from_ctx id ctx in (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
+and step_binop (op, lhs, rhs) ctx = 
+  match (op, lhs, rhs) with
+  | (Plus, Integer lhs, Integer rhs) -> (Integer (lhs + rhs), ctx)
+  | _ -> failwith "Expected Binary operator, found other" 
+        
 
 
 let rec eval e ctx =

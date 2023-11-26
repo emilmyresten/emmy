@@ -21,8 +21,8 @@ let simple_interp_test ?(expected_context = "") in_program expected_result () =
   let (eval, ctx) = run_program in_program in
   let expected_eval = expected_result in
   if (not (String.equal expected_context "")) then
-    check string "test context" expected_context (Interpreter.string_of_context ctx); 
-  check string "test return value" expected_eval (Interpreter.string_of_val eval)
+    check string "test context" expected_context (Pprint.string_of_context ctx); 
+  check string "test return value" expected_eval (Pprint.string_of_expr eval)
 
   (* `Quick marks it as a fast running test, can be ran every time.
      the alternative is `Slow, that can be suppressed. Unclear how to do that using dune. *)
@@ -95,6 +95,14 @@ let suite =
     and expected_result = "Integer 1"
     and expected_context = "arity_0 = (Function -> Integer 1)\n" in
     arity_0, `Quick, simple_interp_test ~expected_context arity_0 expected_result); 
+
+
+    (let addition = 
+      "(def inc (fn x -> (+ x 1))); 
+      (inc 1)" 
+    and expected_result = "Integer 2"
+    and expected_context = "inc = (Function x -> (+ Identifier x Integer 1))\n" in
+    addition, `Quick, simple_interp_test ~expected_context addition expected_result); 
   ]
 
 let interp_tests () =
