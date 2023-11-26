@@ -38,6 +38,11 @@ let test_simple_fn_invoke in_program () =
   check string "def stored id as function in context" expected_ctx (Interpreter.string_of_context ctx); 
   check string "evaluating function gave correct answer" expected_eval (Interpreter.string_of_val eval)
 
+let test_alpha_conversion in_program () =
+  let (_, ctx) = run_program in_program in
+  let expected_ctx = "alpha_converted = Function x -> Function x#144 -> Function x#398 -> Parameter x#398\n" in
+  check string "def stored id as function in context" expected_ctx (Interpreter.string_of_context ctx)
+
   (* `Quick marks it as a fast running test, can be ran every time.
      the alternative is `Slow, that can be suppressed. Unclear how to do that using dune. *)
 let suite =
@@ -47,6 +52,7 @@ let suite =
     (* let ';' symbolize separate expressions, new command in repl. *)
     (let program = "(def id (fn x -> x)); (id 1)" in program, `Quick, test_simple_fn_invoke program); 
     (let program = "(def id (fn x -> x)); ((id (fn y -> y)) 1)" in program, `Quick, test_simple_fn_invoke program); 
+    (let program = "(def alpha_converted (fn x -> (fn x -> (fn x -> x))))" in program, `Quick, test_alpha_conversion program); 
     (let program = "(def id (fn x y -> x)); (id 1)" in program, `Quick, test_simple_fn_invoke program); 
   ]
 

@@ -36,7 +36,7 @@ let rec beta_reduce param_id arg expr =
   | Def (id, expr) -> Def (id, beta_reduce param_id arg expr)
   | Fn (params, expr) -> Fn (params, beta_reduce param_id arg expr)
   | _ -> expr
-and alpha_conversion bindings replace expr = 
+and alpha_convert bindings replace expr = 
   (* [bindings: list of seen bindings.
       replace: look in this associative list/map to find replacement names for the current.]*)
   (* Rename nested identifiers to resolve scope conflicts. 
@@ -46,14 +46,14 @@ and alpha_conversion bindings replace expr =
       (match (List.assoc_opt id replace) with 
       | Some name -> Parameter name 
       | None -> expr)
-  | Def (_, expr) -> alpha_conversion bindings replace expr
+  | Def (_, expr) -> alpha_convert bindings replace expr
   | Fn (params, expr) -> 
     let conflicts = List.overlap bindings params in (* replace these *)
     let bind = List.unique_right bindings params in (* add these to the seen bindings *)
     let new_replace = List.fold_left (fun a p -> [(p, get_unique_name p bindings)] @ a) [] conflicts in
     let new_params = (List.map (fun (_, v) -> v) new_replace) @ bind in
     let new_bindings = new_params @ bind @ bindings in
-    Fn (new_params, alpha_conversion new_bindings new_replace expr)
+    Fn (new_params, alpha_convert new_bindings new_replace expr)
   | _ -> expr
 
 
@@ -62,7 +62,7 @@ let rec step expr ctx =
   | Def (id, expr) when is_value expr -> (Unit, (id, expr) :: ctx)
   | Def (id, expr) -> let (stepped, new_ctx) = step expr ctx in (Def (id, stepped), new_ctx)
   | Fn (params, expr) when is_value expr -> (Fn (params, expr), ctx)
-  | Fn (params, expr) -> let step_ctx = (List.hd params, Parameter (List.hd params)) :: ctx in (alpha_conversion [] [] (Fn (params, fst (step expr step_ctx))), ctx)
+  | Fn (params, expr) -> let step_ctx = (List.hd params, Parameter (List.hd params)) :: ctx in (alpha_convert [] [] (Fn (params, fst (step expr step_ctx))), ctx)
   | FnInvoke (to_apply, args) when is_value to_apply && is_value (List.hd args) -> 
     (match to_apply with
     | Fn (params, expr) -> (beta_reduce (List.hd params) (List.hd args) expr, ctx)
