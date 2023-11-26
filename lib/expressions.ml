@@ -7,10 +7,9 @@ type expression = Def of string * expression
                 | Integer of int
                 | String of string
                 | Identifier of string
-                | Parameter of string (* Unrealized but bound in function body. *)
                 | Unit
                 
-let rec is_value expr = match expr with
-  | Integer _ | String _ | Unit | Parameter _ -> true
-  | Fn (_, expr) when is_value expr -> true
+let is_value expr = match expr with
+  | Integer _ | String _ | Unit -> true
+  | Fn (_, _) -> true
   | _ -> false 
