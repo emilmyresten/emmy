@@ -2,23 +2,9 @@ open Alcotest
 open Interp
 
 
-let run_program p = 
-  let cmds = String.split_on_char ';' p in
-  let rec eval_all_aux ctx cmds = 
-    (match cmds with
-    | [] -> failwith "empty program"
-    | cmd :: [] -> 
-      (let in_program = String.to_seq cmd |> List.of_seq in
-      let (eval, ctx) = let ast = Parser.parse in_program in Interpreter.eval ast ctx in
-      (eval, ctx))
-    | cmd :: t -> 
-        (let in_program = String.to_seq cmd |> List.of_seq in
-        let (_, ctx) = let ast = Parser.parse in_program in Interpreter.eval ast ctx in (* we do not care about intermediate evals *)
-        eval_all_aux ctx t)) in
-  eval_all_aux [] cmds
 
 let simple_interp_test ?(expected_context = "") in_program expected_result () =
-  let (eval, ctx) = run_program in_program in
+  let (eval, ctx) = Interpreter.eval_program in_program in
   let expected_eval = expected_result in
   if (not (String.equal expected_context "")) then
     check string "test context" expected_context (Pprint.string_of_context ctx); 

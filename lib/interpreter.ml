@@ -107,3 +107,18 @@ and step_binop expr ctx =
 let rec eval e ctx =
   if is_value e then (e, ctx)
   else let (stepped, ctx) = step e ctx in eval stepped ctx
+
+let eval_program p = 
+  let cmds = String.split_on_char ';' p in
+  let rec eval_all_aux ctx cmds = 
+    (match cmds with
+    | [] -> failwith "empty program"
+    | final_cmd :: [] -> 
+      let char_seq = String.to_seq final_cmd |> List.of_seq in
+      let (eval, ctx) = eval (Parser.parse char_seq) ctx in
+      (eval, ctx)
+    | cmd :: t -> 
+      let char_seq = String.to_seq cmd |> List.of_seq in
+      let (_, ctx) = eval (Parser.parse char_seq) ctx in (* we do not care about intermediate evals other than storing in ctx *)
+      eval_all_aux ctx t) in
+  eval_all_aux [] cmds
