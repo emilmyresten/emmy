@@ -59,7 +59,7 @@ and alpha_convert bindings replace expr =
 
 
 
-let map_of_params params = List.map (fun p -> (p, Identifier p)) params
+(* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
 let check_arity params args = List.length (args) = List.length (params)
 let is_list_of_values exprs = List.for_all (fun m -> is_value m) exprs
 
@@ -72,7 +72,7 @@ let rec step expr ctx =
     (match to_apply with
     | Fn (params, expr) -> 
       if check_arity params args then 
-        let (stepped, _) = step expr (map_of_params params @ ctx) in
+        let (stepped, _) = step expr ((List.combine params args) @ ctx) in
         (beta_reduce params args stepped, ctx)
       else
         failwith (sprintf "Wrong arity: function expected %d args, received %d." (List.length params) (List.length args))
@@ -85,8 +85,7 @@ let rec step expr ctx =
   | True | False | Integer _ | String _ -> (expr, ctx)
   | Identifier id -> let value = get_from_ctx id ctx in (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
-  | Cond (exprs, default) when is_list_of_values exprs && is_value default -> step_cond (exprs, default) ctx (* eager, reduce all before big-step. *)
-  | Cond (exprs, default) -> (Cond (List.map (fun m -> fst (step m ctx)) exprs, fst (step default ctx)), ctx)
+  | Cond (exprs, default) -> lazy_step_cond (exprs, default) ctx
 and step_binop expr ctx = 
   match expr with
   (* Numbers *)
@@ -105,11 +104,14 @@ and step_binop expr ctx =
   | Binop (Equals, _, _) -> (False, ctx)
 
   | _ -> failwith (sprintf "Could not execute binary operation on %s." (string_of_expr expr))
-and step_cond (exprs, default) ctx =
+and lazy_step_cond (exprs, default) ctx =
   match exprs with
-  | (False | Unit) :: _ :: t -> step_cond (t, default) ctx
-  | _ :: expr :: _ -> (expr, ctx)
-  | [] -> (default, ctx)
+  | case :: expr :: t -> 
+    (match (fst (step case ctx)) with
+    | (False | Unit) -> lazy_step_cond (t, default) ctx
+    | x when not (is_value x) -> lazy_step_cond ((fst (step case ctx)) :: expr :: t, default) ctx
+    | _ -> (fst (step expr ctx), ctx))
+  | [] -> (fst (step default ctx), ctx)
   | _ -> failwith "Cond-expression with uneven cases."
 
 let rec eval e ctx =
