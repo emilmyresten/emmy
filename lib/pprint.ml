@@ -13,7 +13,7 @@ let rec string_of_val v =
   | _ -> failwith (sprintf "Expected value, found %s" (string_of_expr v))
 and string_of_params params = (List.fold_left (fun acc m -> acc ^ m ^ " ") "" params)
 and string_of_args args = (List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" args)
-and string_of_cond_cases exprs = (List.fold_left (fun acc m -> acc ^ "(" ^ string_of_expr m ^ ") ") "" exprs)
+and string_of_cond_cases exprs = (List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" exprs)
 and string_of_binop binop = match binop with
   | (Plus, lhs, rhs) -> sprintf "(+ %s %s)" (string_of_expr lhs) (string_of_expr rhs)
   | (Minus, lhs, rhs) -> sprintf "(- %s %s)" (string_of_expr lhs) (string_of_expr rhs)
