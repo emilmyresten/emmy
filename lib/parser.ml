@@ -24,9 +24,12 @@ let rec do_parse chars =
         | MINUS -> let chars = eat MINUS chars in parse_binop_expr Minus chars
         | TIMES -> let chars = eat TIMES chars in parse_binop_expr Times chars
         | DIVISION -> let chars = eat DIVISION chars in parse_binop_expr Division chars
+        | EQUALS -> let chars = eat EQUALS chars in parse_binop_expr Equals chars
         | _ -> parse_fn_invoke_expr chars) in
     let chars = eat RPAREN chars in 
     (expr, chars)
+  | Token (TRUE, _) -> (True, chars)
+  | Token (FALSE, _) -> (False, chars)  
   | Token (INTEGER_TOKEN v, _) -> (Integer v, chars)
   | Token (STRING_TOKEN str, _) -> (String str, chars)
   | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, chars)

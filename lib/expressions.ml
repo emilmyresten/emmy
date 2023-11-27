@@ -4,6 +4,8 @@ type binop = Plus
            | Minus
            | Times
            | Division
+           | Equals
+
 
 type expression = Def of string * expression
                 | Fn of string list * expression
@@ -12,8 +14,10 @@ type expression = Def of string * expression
                 | Integer of int
                 | String of string
                 | Identifier of string
+                | True
+                | False
                 | Unit
                 
 let is_value expr = match expr with
-  | Integer _ | String _ | Unit | Fn (_, _) -> true
+  | Integer _ | String _ | True | False | Unit | Fn (_, _) -> true
   | _ -> false 

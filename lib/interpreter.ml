@@ -31,9 +31,7 @@ let rec beta_reduce param_ids args expr =
   | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
   | FnInvoke (to_apply, fn_args) -> FnInvoke (to_apply, List.map (fun arg -> beta_reduce param_ids args arg) fn_args)
   | Binop (op, lhs, rhs) -> Binop (op, (beta_reduce param_ids args lhs), (beta_reduce param_ids args rhs))
-  | Integer v -> Integer v
-  | String str -> String str
-  | Unit -> Unit
+  | True | False | Integer _ | String _ | Unit -> expr
   
 and alpha_convert bindings replace expr = 
   (* [bindings: list of seen bindings.
@@ -55,9 +53,7 @@ and alpha_convert bindings replace expr =
     Fn (new_params, alpha_convert new_bindings new_replace expr)
   | FnInvoke (to_apply, args) -> FnInvoke (alpha_convert bindings replace to_apply, List.map (fun arg -> alpha_convert bindings replace arg) args)
   | Binop (op, lhs, rhs) -> Binop (op, (alpha_convert bindings replace lhs), (alpha_convert bindings replace rhs))
-  | Integer v -> Integer v
-  | String str -> String str
-  | Unit -> Unit
+  | True | False | Integer _ | String _ | Unit -> expr
 
 
 
@@ -83,8 +79,7 @@ let rec step expr ctx =
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
   | Binop (op, lhs, rhs) when is_value lhs -> (Binop (op, lhs, fst (step rhs ctx)), ctx)
   | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
-  | Integer _ -> (expr, ctx)
-  | String _ -> (expr, ctx)
+  | True | False | Integer _ | String _ -> (expr, ctx)
   | Identifier id -> let value = get_from_ctx id ctx in (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
 and step_binop expr ctx = 
@@ -97,6 +92,14 @@ and step_binop expr ctx =
   (* Strings *)
   | Binop (Plus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
+  (* Boolean logic *)
+  | Binop (Equals, Integer lhs, Integer rhs) -> if lhs = rhs then (True, ctx) else (False, ctx)
+  | Binop (Equals, String lhs, String rhs) -> if lhs = rhs then (True, ctx) else (False, ctx) 
+  | Binop (Equals, True, True) -> (True, ctx)
+  | Binop (Equals, False, False) -> (False, ctx)
+  | Binop (Equals, _, _) -> (False, ctx)
+
+
   | _ -> failwith (sprintf "Could not execute binary operation on %s." (string_of_expr expr))
         
 

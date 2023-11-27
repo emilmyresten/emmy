@@ -36,10 +36,11 @@ let lex_identifier_or_keyword chars = (* allow every symbol except white-space i
   | h :: t when Char.is_whitespace h || Char.is_symbol h -> ((acc, reified_position ()), h :: t)
   | [] -> ((acc, reified_position ()), [])
   | h :: t -> aux (acc ^ (String.make 1 h)) t  
-  in let ((id, pos), remaining) = aux "" chars in
-  if id = "def" then (Token (DEF, pos), remaining)
-  else if id = "fn" then (Token (FN, pos), remaining)
-  else (Token (IDENTIFIER_TOKEN id, pos), remaining) 
+  in let ((parsed, pos), remaining) = aux "" chars in
+  match (List.assoc_opt parsed keywords) with
+  | Some token_type -> (Token (token_type, pos), remaining)
+  | None -> (Token (IDENTIFIER_TOKEN parsed, pos), remaining) 
+
 
 let rec next_token chars = 
   incr_col (); 
@@ -55,7 +56,8 @@ let rec next_token chars =
   | '+' :: t -> (Token (PLUS, reified_position ()), t)
   | '-' :: t -> (Token (MINUS, reified_position ()), t)
   | '*' :: t -> (Token (TIMES, reified_position ()), t)
-  | '/' :: t -> (Token (DIVISION, reified_position ()), t)
+  | '/' :: t -> (Token (DIVISION, reified_position ()), t)  
+  | '=' :: t -> (Token (EQUALS, reified_position ()), t)
   | '"' :: t -> lex_string (t) 
   | h :: t when Char.is_letter h -> lex_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> lex_number (h :: t)
@@ -77,6 +79,7 @@ let rec peek chars =
   | '-' :: _ -> MINUS
   | '*' :: _ -> TIMES
   | '/' :: _ -> DIVISION
+  | '=' :: _ -> EQUALS
   | '"' :: t -> peek_string (t) 
   | h :: t when Char.is_letter h -> peek_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> peek_number (h :: t)

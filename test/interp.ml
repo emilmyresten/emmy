@@ -28,9 +28,17 @@ let simple_interp_test ?(expected_context = "") in_program expected_result () =
      the alternative is `Slow, that can be suppressed. Unclear how to do that using dune. *)
 let suite =
   [ 
-    (let program = "(def x 1)" 
+    (let integers = "(def x 1)" 
     and expected_result = "Unit" and expected_context = "x = Integer 1\n" in 
-    program, `Quick, simple_interp_test ~expected_context program expected_result); 
+    integers, `Quick, simple_interp_test ~expected_context integers expected_result); 
+
+    (let booleans = "(def x true)" 
+    and expected_result = "Unit" and expected_context = "x = true\n" in 
+    booleans, `Quick, simple_interp_test ~expected_context booleans expected_result); 
+
+    (let equality = "(= 1 1)" 
+    and expected_result = "true" in 
+    equality, `Quick, simple_interp_test equality expected_result); 
 
     (let program = "(def id (fn x -> x))"
     and expected_result = "Unit" in 

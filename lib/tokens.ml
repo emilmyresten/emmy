@@ -17,6 +17,9 @@ type token_type = LPAREN
                 | MINUS
                 | TIMES
                 | DIVISION
+                | TRUE
+                | FALSE
+                | EQUALS
                 | INTEGER_TOKEN of int
                 | STRING_TOKEN of string
                 | IDENTIFIER_TOKEN of string
@@ -24,6 +27,13 @@ type token_type = LPAREN
                 | EOF
 
 type token = Token of token_type * token_position
+
+let keywords = [
+  ("def", DEF);
+  ("fn", FN);
+  ("true", TRUE);
+  ("false", FALSE);
+]
 
 let get_position = function
   | Token (_, pos) -> pos
@@ -38,6 +48,9 @@ let string_of_token_type = function
   | MINUS -> "-"
   | TIMES -> "*"
   | DIVISION -> "/"
+  | EQUALS -> "="
+  | TRUE -> "true"
+  | FALSE -> "false"
   | INTEGER_TOKEN v -> string_of_int v 
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
