@@ -104,7 +104,7 @@ and peek_identifier_or_keyword chars = (* allow every symbol except white-space 
   | h :: _ when Char.is_whitespace h || Char.is_symbol h -> acc
   | [] -> acc
   | h :: t -> aux (acc ^ (String.make 1 h)) t  
-  in let id = aux "" chars in
-  if id = "def" then DEF
-  else if id = "fn" then FN
-  else IDENTIFIER_TOKEN id
+  in let parsed = aux "" chars in
+  match (List.assoc_opt parsed keywords) with
+  | Some token_type -> token_type
+  | None -> IDENTIFIER_TOKEN parsed 

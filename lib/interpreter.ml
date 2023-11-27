@@ -32,6 +32,7 @@ let rec beta_reduce param_ids args expr =
   | FnInvoke (to_apply, fn_args) -> FnInvoke (to_apply, List.map (fun arg -> beta_reduce param_ids args arg) fn_args)
   | Binop (op, lhs, rhs) -> Binop (op, (beta_reduce param_ids args lhs), (beta_reduce param_ids args rhs))
   | True | False | Integer _ | String _ | Unit -> expr
+  | Cond (exprs, default) -> Cond (List.map (fun expr -> beta_reduce param_ids args expr) exprs, beta_reduce param_ids args default)
   
 and alpha_convert bindings replace expr = 
   (* [bindings: list of seen bindings.
@@ -54,18 +55,20 @@ and alpha_convert bindings replace expr =
   | FnInvoke (to_apply, args) -> FnInvoke (alpha_convert bindings replace to_apply, List.map (fun arg -> alpha_convert bindings replace arg) args)
   | Binop (op, lhs, rhs) -> Binop (op, (alpha_convert bindings replace lhs), (alpha_convert bindings replace rhs))
   | True | False | Integer _ | String _ | Unit -> expr
+  | Cond (exprs, default) ->  Cond (List.map (fun expr -> alpha_convert bindings replace expr) exprs, alpha_convert bindings replace default)
 
 
 
 let map_of_params params = List.map (fun p -> (p, Identifier p)) params
 let check_arity params args = List.length (args) = List.length (params)
+let is_list_of_values exprs = List.for_all (fun m -> is_value m) exprs
 
 let rec step expr ctx =  
   match expr with
   | Def (id, expr) when is_value expr -> (Unit, (id, expr) :: ctx)
   | Def (id, expr) -> let (stepped, new_ctx) = step expr ctx in (Def (id, stepped), new_ctx)
   | Fn (params, expr) -> (alpha_convert params [] (Fn (params, expr)), ctx)
-  | FnInvoke (to_apply, args) when is_value to_apply && List.for_all (fun arg -> is_value arg) args -> 
+  | FnInvoke (to_apply, args) when is_value to_apply && is_list_of_values args -> 
     (match to_apply with
     | Fn (params, expr) -> 
       if check_arity params args then 
@@ -82,6 +85,8 @@ let rec step expr ctx =
   | True | False | Integer _ | String _ -> (expr, ctx)
   | Identifier id -> let value = get_from_ctx id ctx in (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
+  | Cond (exprs, default) when is_list_of_values exprs && is_value default -> step_cond (exprs, default) ctx (* eager, reduce all before big-step. *)
+  | Cond (exprs, default) -> (Cond (List.map (fun m -> fst (step m ctx)) exprs, fst (step default ctx)), ctx)
 and step_binop expr ctx = 
   match expr with
   (* Numbers *)
@@ -99,16 +104,19 @@ and step_binop expr ctx =
   | Binop (Equals, False, False) -> (False, ctx)
   | Binop (Equals, _, _) -> (False, ctx)
 
-
   | _ -> failwith (sprintf "Could not execute binary operation on %s." (string_of_expr expr))
-        
-
+and step_cond (exprs, default) ctx =
+  match exprs with
+  | (False | Unit) :: _ :: t -> step_cond (t, default) ctx
+  | _ :: expr :: _ -> (expr, ctx)
+  | [] -> (default, ctx)
+  | _ -> failwith "Cond-expression with uneven cases."
 
 let rec eval e ctx =
   if is_value e then (e, ctx)
   else let (stepped, ctx) = step e ctx in eval stepped ctx
 
-let eval_program p = 
+let eval_program p initial_ctx = 
   let cmds = String.split_on_char ';' p in
   let rec eval_all_aux ctx cmds = 
     (match cmds with
@@ -121,4 +129,4 @@ let eval_program p =
       let char_seq = String.to_seq cmd |> List.of_seq in
       let (_, ctx) = eval (Parser.parse char_seq) ctx in (* we do not care about intermediate evals other than storing in ctx *)
       eval_all_aux ctx t) in
-  eval_all_aux [] cmds
+  eval_all_aux initial_ctx cmds

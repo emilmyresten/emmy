@@ -4,7 +4,7 @@ open Interp
 
 
 let simple_interp_test ?(expected_context = "") in_program expected_result () =
-  let (eval, ctx) = Interpreter.eval_program in_program in
+  let (eval, ctx) = Interpreter.eval_program in_program [] in
   let expected_eval = expected_result in
   if (not (String.equal expected_context "")) then
     check string "test context" expected_context (Pprint.string_of_context ctx); 
@@ -118,6 +118,34 @@ let suite =
     and expected_result = "Integer 1"
     and expected_context = "divide = (Function x -> (/ Identifier x Integer 2))\n" in
     division, `Quick, simple_interp_test ~expected_context division expected_result); 
+
+    (let cond_case = "(cond (= 0 1) 1 (= 2 2) 2 3)" 
+    and expected_result = "Integer 2" in
+    cond_case, `Quick, simple_interp_test cond_case expected_result); 
+
+    (let and_fn = 
+      "(def and (fn pred1 pred2 -> (cond (= pred1 false) false (= pred1 pred2) true false)));
+       (and (= 1 0) (= 2 2))" 
+    and expected_result = "false" in
+    and_fn, `Quick, simple_interp_test and_fn expected_result); 
+
+    (let and_fn_2 = 
+      "(def and (fn pred1 pred2 -> (cond (= pred1 false) false (= pred1 pred2) true false)));
+       (and (= 1 1) (= 2 2))" 
+    and expected_result = "true" in
+    and_fn_2, `Quick, simple_interp_test and_fn_2 expected_result); 
+
+    (let not_fn = 
+      "(def not (fn x -> (cond x false true)));
+       (not 1)" 
+    and expected_result = "false" in
+    not_fn, `Quick, simple_interp_test not_fn expected_result); 
+
+    (let not_fn_2 = 
+      "(def not (fn x -> (cond x false true)));
+       (not false)" 
+    and expected_result = "true" in
+    not_fn_2, `Quick, simple_interp_test not_fn_2 expected_result); 
   ]
 
 let interp_tests () =

@@ -5,7 +5,7 @@ open Unix
 let rec loop ctx =
   try
     let read = Stdlib.read_line () in
-    let (eval, ctx) = Interpreter.eval_program read in
+    let (eval, ctx) = Interpreter.eval_program read ctx in
     let _print = Printf.printf "%s\n" (Pprint.string_of_expr eval) in
     print_endline "Context:";
     print_endline (Pprint.string_of_context ctx);

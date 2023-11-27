@@ -19,12 +19,13 @@ let rec do_parse chars =
    let (expr, chars) = 
       (match peek chars with
         | DEF -> let chars = eat DEF chars in parse_def_expr chars
-        | FN -> let chars = eat FN chars in parse_fn_expr chars
         | PLUS -> let chars = eat PLUS chars in parse_binop_expr Plus chars
         | MINUS -> let chars = eat MINUS chars in parse_binop_expr Minus chars
         | TIMES -> let chars = eat TIMES chars in parse_binop_expr Times chars
         | DIVISION -> let chars = eat DIVISION chars in parse_binop_expr Division chars
         | EQUALS -> let chars = eat EQUALS chars in parse_binop_expr Equals chars
+        | COND -> let chars = eat COND chars in parse_cond_expr chars
+        | FN -> let chars = eat FN chars in parse_fn_expr chars
         | _ -> parse_fn_invoke_expr chars) in
     let chars = eat RPAREN chars in 
     (expr, chars)
@@ -43,7 +44,25 @@ and parse_def_expr chars =
     | tk -> failwith (sprintf "Expected Identifier, found %s " (string_of_token (fst tk))) in
   let (expr, chars) = do_parse chars in
   (Def (id, expr), chars)
-
+and parse_binop_expr op chars =
+  let (lhs, chars) = do_parse chars in
+  let (rhs, chars) = do_parse chars in
+  (Binop (op, lhs, rhs), chars)
+and parse_cond_expr chars =
+  let rec parse_cond_aux exprs chars = 
+    let (case, chars) = do_parse chars in
+    if peek chars = RPAREN then 
+      if (List.length exprs) mod 2 = 1 then 
+        failwith "Must provide default case for cond-expression" 
+      else 
+        (Cond (List.rev exprs, case), chars)
+    else 
+      let (expr, chars) = do_parse chars in
+      if peek chars = RPAREN then 
+        failwith "Must provide default case for cond-expression" 
+      else
+        parse_cond_aux (expr :: case :: exprs) chars in
+  (parse_cond_aux [] chars)
 and parse_fn_expr chars =
   let rec get_params_aux params_acc chars =
     (match peek chars with
@@ -66,10 +85,6 @@ and parse_fn_invoke_expr chars =
   let (to_apply, chars) = do_parse chars in
   let (args, chars) = get_args_aux [] chars in
   (FnInvoke (to_apply, args), chars)
-and parse_binop_expr op chars =
-  let (lhs, chars) = do_parse chars in
-  let (rhs, chars) = do_parse chars in
-  (Binop (op, lhs, rhs), chars)
 
   
 

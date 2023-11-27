@@ -20,6 +20,7 @@ type token_type = LPAREN
                 | TRUE
                 | FALSE
                 | EQUALS
+                | COND
                 | INTEGER_TOKEN of int
                 | STRING_TOKEN of string
                 | IDENTIFIER_TOKEN of string
@@ -33,6 +34,7 @@ let keywords = [
   ("fn", FN);
   ("true", TRUE);
   ("false", FALSE);
+  ("cond", COND);
 ]
 
 let get_position = function
@@ -51,6 +53,7 @@ let string_of_token_type = function
   | EQUALS -> "="
   | TRUE -> "true"
   | FALSE -> "false"
+  | COND -> "cond"
   | INTEGER_TOKEN v -> string_of_int v 
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
