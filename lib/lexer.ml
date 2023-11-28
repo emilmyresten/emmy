@@ -57,9 +57,10 @@ let rec next_token chars =
   | '-' :: t -> (Token (MINUS, reified_position ()), t)
   | '*' :: t -> (Token (TIMES, reified_position ()), t)
   | '/' :: t -> (Token (DIVISION, reified_position ()), t)  
-  | '=' :: t -> (Token (EQUALS, reified_position ()), t)
+  | '=' :: ' ' :: t -> (Token (EQUALS, reified_position ()), t)
+  | '<' :: ' ' :: t -> (Token (LESS_THAN, reified_position ()), t)
   | '"' :: t -> lex_string (t) 
-  | h :: t when Char.is_letter h -> lex_identifier_or_keyword (h :: t)
+  | h :: t when not (Char.is_digit h || Char.is_whitespace h || Char.is_symbol h) -> lex_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> lex_number (h :: t)
   | h :: t -> (Token (UNKNOWN h, reified_position ()), t)
   | [] -> 
@@ -79,9 +80,10 @@ let rec peek chars =
   | '-' :: _ -> MINUS
   | '*' :: _ -> TIMES
   | '/' :: _ -> DIVISION
-  | '=' :: _ -> EQUALS
+  | '=' :: ' ' :: _ -> EQUALS
+  | '<' :: ' ' :: _ -> LESS_THAN
   | '"' :: t -> peek_string (t) 
-  | h :: t when Char.is_letter h -> peek_identifier_or_keyword (h :: t)
+  | h :: t when not (Char.is_digit h || Char.is_whitespace h || Char.is_symbol h) -> peek_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> peek_number (h :: t)
   | h :: _ -> UNKNOWN h
   | [] -> 

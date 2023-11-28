@@ -142,13 +142,22 @@ let suite =
     not_fn, `Quick, simple_interp_test not_fn expected_result); 
 
     (let not_fn_2 = 
-      "(def not (fn x -> (cond x false true)));
+      "(def not 
+        (fn x -> 
+          (cond 
+            x false 
+            true)));
        (not false)" 
     and expected_result = "true" in
     not_fn_2, `Quick, simple_interp_test not_fn_2 expected_result); 
 
     (let or_fn = 
-      "(def and (fn pred1 pred2 -> (cond (= pred1 false) false (= pred1 pred2) true false)));
+      "(def and 
+        (fn pred1 pred2 -> 
+          (cond 
+            (= pred1 false) false 
+            (= pred1 pred2) true 
+            false)));
        (def or (fn pred1 pred2 -> (cond (and pred1 pred2) true (= pred1 true) true (= pred2 true) true false)));
        (or (= 1 1) (= 1 0))" 
     and expected_result = "true" in
@@ -169,8 +178,19 @@ let suite =
     or_fn_3, `Quick, simple_interp_test or_fn_3 expected_result); 
 
     (let or_fn_4 = 
-      "(def and (fn pred1 pred2 -> (cond (= pred1 false) false (= pred1 pred2) true false)));
-       (def or (fn pred1 pred2 -> (cond (and pred1 pred2) true (= pred1 true) true (= pred2 true) true false)));
+      "(def and 
+        (fn pred1 pred2 -> 
+          (cond 
+            (= pred1 false) false 
+            (= pred1 pred2) true 
+            false)));
+       (def or 
+        (fn pred1 pred2 -> 
+          (cond
+           (and pred1 pred2) true 
+           (= pred1 true) true 
+           (= pred2 true) true 
+           false)));
        (or (= 0 1) (= 0 1))" 
     and expected_result = "false" in
     or_fn_4, `Quick, simple_interp_test or_fn_4 expected_result); 
@@ -179,7 +199,35 @@ let suite =
       "(def fib (fn x -> (cond (= x 0) 0 (= x 1) 1 (= x 2) 1 (+ (fib (- x 1)) (fib (- x 2))))));
       (fib 10)"
     and expected_result = "Integer 55" in
-    recurse, `Quick, simple_interp_test recurse expected_result)
+    recurse, `Quick, simple_interp_test recurse expected_result);
+
+    (let less_than =
+      "(< 5 10)"
+    and expected_result = "true" in
+    less_than, `Quick, simple_interp_test less_than expected_result);
+
+    (let less_than_or_eq = 
+      "(def and 
+        (fn pred1 pred2 -> 
+          (cond 
+            (= pred1 false) false 
+            (= pred1 pred2) true 
+            false)));
+       (def or 
+        (fn pred1 pred2 -> 
+          (cond
+           (and pred1 pred2) true 
+           (= pred1 true) true 
+           (= pred2 true) true 
+           false)));
+       (def <= 
+        (fn x y -> 
+          (or 
+            (= x y) 
+            (< x y))));
+       (<= 1 1)" 
+    and expected_result = "true" in
+    less_than_or_eq, `Quick, simple_interp_test less_than_or_eq expected_result); 
   ]
 
 let interp_tests () =

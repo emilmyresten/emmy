@@ -5,6 +5,7 @@ type binop = Plus
            | Times
            | Division
            | Equals
+           | LessThan
 
 
 type expression = Def of string * expression

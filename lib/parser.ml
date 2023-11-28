@@ -24,6 +24,7 @@ let rec do_parse chars =
         | TIMES -> let chars = eat TIMES chars in parse_binop_expr Times chars
         | DIVISION -> let chars = eat DIVISION chars in parse_binop_expr Division chars
         | EQUALS -> let chars = eat EQUALS chars in parse_binop_expr Equals chars
+        | LESS_THAN -> let chars = eat LESS_THAN chars in parse_binop_expr LessThan chars
         | COND -> let chars = eat COND chars in parse_cond_expr chars
         | FN -> let chars = eat FN chars in parse_fn_expr chars
         | _ -> parse_fn_invoke_expr chars) in

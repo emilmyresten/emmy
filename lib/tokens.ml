@@ -20,6 +20,7 @@ type token_type = LPAREN
                 | TRUE
                 | FALSE
                 | EQUALS
+                | LESS_THAN
                 | COND
                 | INTEGER_TOKEN of int
                 | STRING_TOKEN of string
@@ -51,6 +52,7 @@ let string_of_token_type = function
   | TIMES -> "*"
   | DIVISION -> "/"
   | EQUALS -> "="
+  | LESS_THAN -> "<"
   | TRUE -> "true"
   | FALSE -> "false"
   | COND -> "cond"

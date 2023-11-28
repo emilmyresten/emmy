@@ -98,6 +98,7 @@ and step_binop expr ctx =
   | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   (* Boolean logic *)
   | Binop (Equals, Integer lhs, Integer rhs) -> if lhs = rhs then (True, ctx) else (False, ctx)
+  | Binop (LessThan, Integer lhs, Integer rhs) -> if lhs < rhs then (True, ctx) else (False, ctx)
   | Binop (Equals, String lhs, String rhs) -> if lhs = rhs then (True, ctx) else (False, ctx) 
   | Binop (Equals, True, True) -> (True, ctx)
   | Binop (Equals, False, False) -> (False, ctx)
