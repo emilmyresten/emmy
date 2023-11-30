@@ -26,3 +26,8 @@ module List = struct
   let overlap a b = List.filter (fun m -> (List.mem m a)) b
   let unique_right a b = List.filter (fun m -> not (List.mem m a)) b
 end
+
+module String = struct
+  include String
+  let of_char_list c = (String.concat "" (List.map (String.make 1) c))
+end
