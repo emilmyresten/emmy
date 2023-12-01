@@ -2,14 +2,10 @@ open Unix
 open Printf
 open Extensions
 
-(* escape code in hex: \x1b, in decimal: \027*)
+(* escape code in hex: \x1b, in decimal: \x1b*)
 (* Escape codes can be found here: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm *)
 
-let escape_code = '\027'
-and new_line = '\010'
-and delete = '\127'
-
-let iprint_escape_code esc = printf esc
+let iprint_escape_code esc = printf "%s" esc
 let clear_line () =  iprint_escape_code "\r\x1b[K"
 let move_cursor_right () = iprint_escape_code "\x1b[C"
 let move_cursor_left () = iprint_escape_code "\x1b[D"
@@ -37,7 +33,7 @@ let get_cursor_position () =
   let rec cursor_position_aux acc = 
     let (char_list, num_bytes) = read_bytes () in
       match char_list with 
-      | '\027' :: '[' :: t -> 
+      | '\x1b' :: '[' :: t -> 
         cursor_position_aux (acc ^ (String.of_char_list t))
       | c -> 
         if num_bytes = 3 then 
@@ -113,30 +109,30 @@ let _handle_backspace line =
     iprint_format "%s" new_line;
     new_line
 
-let rec next_cmd ?(line="") ?(history_index= -1) cmd_history =
+let rec next_char line history_index cmd_history =
   flush Stdlib.stdout;
   let (row, col) = get_cursor_position () in 
   let (char_list, read_chars) = read_bytes () in
   match char_list with
   (* arrow keys *)
-  | '\027' :: '[' :: 'A' :: _ -> (* UP *)
+  | '\x1b' :: '[' :: 'A' :: _ -> (* UP *)
     let next_history_index = get_next_index `UP history_index cmd_history in
     let prev_line = get_from_history cmd_history next_history_index in
     iprint prev_line;
-    next_cmd ~line:prev_line ~history_index:next_history_index cmd_history
-  | '\027' :: '[' :: 'B' :: _ -> (* DOWN *)
+    next_char prev_line next_history_index cmd_history
+  | '\x1b' :: '[' :: 'B' :: _ -> (* DOWN *)
     let next_history_index = get_next_index `DOWN history_index cmd_history in
     let next_line = get_from_history cmd_history next_history_index in
     iprint next_line;
-    next_cmd ~line ~history_index:next_history_index cmd_history
-  | '\027' :: '[' :: 'C' :: _ -> if col - 1 < String.length line then move_cursor_right (); next_cmd ~line ~history_index cmd_history
-  | '\027' :: '[' :: 'D' :: _ -> move_cursor_left (); next_cmd ~line ~history_index cmd_history
+    next_char next_line next_history_index cmd_history
+  | '\x1b' :: '[' :: 'C' :: _ -> if col - 1 < String.length line then move_cursor_right (); next_char line history_index cmd_history
+  | '\x1b' :: '[' :: 'D' :: _ -> move_cursor_left (); next_char line history_index cmd_history
 
   (*  *)
-  | '\027' :: t -> 
+  | '\x1b' :: t -> 
     (match t with 
     | '\010' :: _ when read_chars = 2 -> line (* alt + enter, submit *)
-    | _ -> next_cmd ~line ~history_index cmd_history) (* uncaught escape seq, do nothing. *)
+    | _ -> next_char line history_index cmd_history) (* uncaught escape seq, do nothing. *)
 
   (* new line *)
   (* | '\010' :: _ -> let line = (line ^ "\n") in iprint "\n"; next_cmd ~line ~history_index cmd_history *)
@@ -147,15 +143,16 @@ let rec next_cmd ?(line="") ?(history_index= -1) cmd_history =
     let new_line = handle_delete_at delete_col line in 
     iprint_format "%s" new_line;
     set_cursor_position (get_next_cursor_position `DELETE row col);
-    next_cmd ~line:new_line ~history_index cmd_history
+    next_char new_line history_index cmd_history
 
   (* all other chars, put if single char otherwise do nothing. *)
-  | c :: _ when read_chars = 1 
-          && (Char.is_letter c || Char.is_digit c || Char.is_symbol c || Char.is_whitespace c)
-          && c != '\n' -> 
+  | c :: _ when read_chars = 1 && c != '\n' -> 
     let new_line = handle_insert_at col c line in
     iprint_format "%s" new_line;
     set_cursor_position (get_next_cursor_position `INSERT row col);
-    next_cmd ~line:new_line ~history_index cmd_history
+    next_char new_line history_index cmd_history
 
-  | _ -> next_cmd ~line ~history_index cmd_history
+  | _ -> next_char line history_index cmd_history
+
+
+let next_cmd cmd_history = next_char "" 0 cmd_history
