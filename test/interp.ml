@@ -196,7 +196,7 @@ let suite =
     or_fn_4, `Quick, simple_interp_test or_fn_4 expected_result); 
 
     (let recurse =
-      "(def fib (fn x -> (cond (= x 0) 0 (= x 1) 1 (= x 2) 1 (+ (fib (- x 1)) (fib (- x 2))))));
+      "(def fib (fn x -> (cond (< x 3) 1 (+ (fib (- x 1)) (fib (- x 2))))));
       (fib 10)"
     and expected_result = "Integer 55" in
     recurse, `Quick, simple_interp_test recurse expected_result);
