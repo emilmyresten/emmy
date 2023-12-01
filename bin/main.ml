@@ -3,14 +3,15 @@ open Interepl
 
 let rec loop ctx cmd_history =
   let read = Term.next_cmd cmd_history in
+  Term.iprint_format "%s\n" read;
   let history = read :: cmd_history in
   try
     let (eval, ctx) = Interpreter.eval_program read ctx in
     let _print = Term.iprint_format "%s\n" (Pprint.string_of_expr eval) in
-    print_endline "Context:";
-    print_endline (Pprint.string_of_context ctx);
+    (* Term.iprint "Context:\n";
+    Term.iprint (Pprint.string_of_context ctx); *)
     loop ctx history
-  with e -> print_endline (Printexc.to_string e); loop ctx history
+  with e -> Term.iprint_format "%s\n" (Printexc.to_string e); loop ctx history
   
 let () = let ctx = [] in 
   let t = Unix.localtime (Unix.time ()) in
