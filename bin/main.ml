@@ -5,7 +5,7 @@ let rec loop ctx cmd_history =
   if List.length cmd_history > 0 then iprint "cmd-history: \n";
   List.iter (fun m -> iprint_format "%s\n" m) cmd_history;
   iprint "\n";
-  let read = read_line () in (* this one needs to be rebuilt for better UX, with cmd-history passed to it etc. *)
+  let read = next_cmd cmd_history in (* this one needs to be rebuilt for better UX, with cmd-history passed to it etc. *)
   let history = read :: cmd_history in
   try
     let (eval, ctx) = Interpreter.eval_program read ctx in
