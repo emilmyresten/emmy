@@ -152,4 +152,4 @@ let rec next_char line history_index cmd_history =
   | _ -> next_char line history_index cmd_history
 
 
-let next_cmd cmd_history = next_char "" 0 cmd_history
+let next_cmd cmd_history = next_char "" (-1) cmd_history
