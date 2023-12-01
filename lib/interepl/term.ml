@@ -27,7 +27,7 @@ let read_bytes () =
   let char_list = char_buffer |> Bytes.to_seq |> List.of_seq in
   (char_list, number_read)
 
-let get_cursor_position () = 
+let rec get_cursor_position () = 
   iprint_escape_code "\x1b[6n";
   flush Stdlib.stdout;
   let rec cursor_position_aux acc = 
@@ -40,13 +40,10 @@ let get_cursor_position () =
           cursor_position_aux (acc ^ (String.of_char_list c))
         else 
           let sequence = acc ^ (String.of_char_list c)  in
-          let (row, col) = Scanf.sscanf sequence "%d;%dR" (fun x y -> (x, y)) in
-          (* let pos_of_r = String.index sequence 'R' in
-          let pos = (String.split_on_char ';' (String.sub sequence 0 pos_of_r)) in
-          let row = List.hd pos and col = (List.hd (List.tl pos)) in *)
-          (* iprint_format "found %d" col;
-          flush Stdlib.stdout; *)
-          (row, col)
+          try 
+            let (row, col) = Scanf.sscanf sequence "%d;%dR" (fun x y -> (x, y)) in
+            (row, col)
+        with _ -> get_cursor_position ()
     in cursor_position_aux ""
       
       
