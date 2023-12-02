@@ -125,11 +125,11 @@ let eval_program p initial_ctx =
     (match cmds with
     | [] -> failwith "empty program"
     | final_cmd :: [] -> 
-      let char_seq = String.to_seq final_cmd |> List.of_seq in
+      let char_seq = String.to_list final_cmd in
       let (eval, ctx) = eval (Parser.parse char_seq) ctx in
       (eval, ctx)
     | cmd :: t -> 
-      let char_seq = String.to_seq cmd |> List.of_seq in
+      let char_seq = String.to_list cmd in
       let (_, ctx) = eval (Parser.parse char_seq) ctx in (* we do not care about intermediate evals other than storing in ctx *)
       eval_all_aux ctx t) in
   eval_all_aux initial_ctx cmds

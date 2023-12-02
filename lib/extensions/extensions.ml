@@ -30,4 +30,5 @@ end
 module String = struct
   include String
   let of_char_list c = (String.concat "" (List.map (String.make 1) c))
+  let to_list str = String.to_seq str |> List.of_seq
 end

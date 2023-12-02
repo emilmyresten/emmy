@@ -10,6 +10,8 @@ let clear_line () =  iprint_escape_code "\r\x1b[K"
 let move_cursor_right () = iprint_escape_code "\x1b[C"
 let move_cursor_left () = iprint_escape_code "\x1b[D"
 
+let ( << ) t h = List.rev (h :: List.rev t)
+
 
 let set_cursor_position (row, col) = printf "\x1b[%d;%dH" row col
 
@@ -19,7 +21,7 @@ let iprint_format msg str =
   
 let iprint str =
   clear_line ();
-  printf "%s" str  
+  printf "%s" (String.concat "" str)  
 
 let read_bytes () =
   let char_buffer = Bytes.create 3 in
@@ -53,42 +55,71 @@ let set_raw_mode () =
   let new_termios = { termios with c_icanon = false; c_echo = false } in
   tcsetattr stdin TCSAFLUSH new_termios
 
-let handle_insert_at col char line = 
-  let char_list = String.to_seq line |> List.of_seq in
-  let rec insert_at_aux acc curr_row curr_col line = 
-    match line with
-    | [] -> char :: acc
-    | h :: t -> 
-      (if curr_col = col - 1 then
-        (List.rev t) @ [h; char] @ acc
-      else
-        insert_at_aux (h :: acc) curr_row (curr_col + 1) t)
-  in
-  String.of_char_list (List.rev (insert_at_aux [] 0 0 char_list))
-        
-        
-let handle_delete_at col line =
-  let char_list = String.to_seq line |> List.of_seq in
-  let rec delete_at_aux acc curr_row curr_col line = 
-    match line with
-    | [] -> acc
-    | _ :: [] -> acc
-    | h :: t -> 
-      (if curr_col = col - 1 then
-         (List.rev t) @ acc
-      else
-        delete_at_aux (h :: acc) curr_row (curr_col + 1) t)
-  in
-  String.of_char_list (List.rev (delete_at_aux [] 0 0 char_list))
+let split_by_newline line =
+  let lines = String.split_on_char '\n' line in
+  List.mapi (fun i cmd -> if (i <> (List.length lines - 1)) then cmd ^ "\n" else cmd) lines
+
+let handle_insert_at row col char lines = 
+  let old_line = 
+       List.nth lines row
+    |> String.to_list in
+  let new_line = 
+    (if List.length old_line = col - 1 then
+      old_line << char
+    else 
+      snd (List.fold_left 
+          (fun acc m -> 
+            let i = (fst acc) 
+            and line = (snd acc) in 
+            if i = col - 1 then 
+              (i + 1, line << char << m) 
+          else (i + 1, line << m)) 
+          (0, []) 
+          old_line)) 
+    |> String.of_char_list in
+    List.mapi (fun i x -> if i = row then new_line else x) lines
+      
+let handle_delete_at row col lines =
+  let new_line = 
+     List.nth lines row 
+  |> String.to_list
+  |> List.filteri (fun curr_col _ -> if curr_col = col - 1 then false else true)
+  |> String.of_char_list in 
+  List.mapi (fun i line -> if i = row then new_line else line) lines
 
 let get_from_history cmd_history history_index =
   if history_index = -1 then
-    "" 
+    [""] 
   else 
     match List.nth_opt cmd_history history_index with
-    | Some (cmd) -> cmd
-    | None -> ""
+    | Some (line) -> split_by_newline line
+    | None -> [""]
 
+let get_next_col t erow col lines = 
+  match t with
+  | `FORWARD -> 
+    if erow = List.length lines - 1 && col = String.length (List.nth lines erow) then 
+      col
+    else if col = String.length (List.nth lines erow) then
+      1
+    else
+      col + 1
+  | `BACK -> 
+    if erow = 0 && col = 1 then 
+      col
+    else if col = 1 then 
+      (String.length (List.nth lines (erow - 1)))
+    else 
+      col - 1 
+      
+let get_next_row t erow tty_row col lines = 
+  match t with
+  | `FORWARD -> if erow = List.length lines - 1 then (erow, tty_row) else (erow + 1, tty_row + 1)
+  | `BACK -> 
+    if erow <> 0 && col = 1 then
+      (erow - 1, tty_row - 1)
+    else
+      (erow, tty_row)
 let get_next_index t history_index cmd_history = 
   match t with
   | `UP -> if List.length cmd_history = history_index + 1 then history_index else history_index + 1
@@ -97,16 +128,10 @@ let get_next_index t history_index cmd_history =
 let get_next_cursor_position t row col =
   match t with
   | `INSERT -> (row, col + 1)
-  | `DELETE -> if col < 0 then (row, 0) else (row, col - 1)
-  
-let _handle_backspace line = 
-    let line_len = String.length line in
-    let new_line = if (line_len - 1 < 0) then line else String.sub line 0 (line_len - 1) in 
-    clear_line (); 
-    iprint_format "%s" new_line;
-    new_line
+  | `DELETE -> if col < 0 then (row, 0) else (row, col)
+  | `NEW_LINE -> (row + 1, 0)
 
-let rec next_char line history_index cmd_history =
+let rec next_char lines history_index cmd_history editing_row =
   flush Stdlib.stdout;
   let (row, col) = get_cursor_position () in 
   let (char_list, read_chars) = read_bytes () in
@@ -114,42 +139,52 @@ let rec next_char line history_index cmd_history =
   (* arrow keys *)
   | '\x1b' :: '[' :: 'A' :: _ -> (* UP *)
     let next_history_index = get_next_index `UP history_index cmd_history in
-    let prev_line = get_from_history cmd_history next_history_index in
-    iprint prev_line;
-    next_char prev_line next_history_index cmd_history
+    let prev_lines = get_from_history cmd_history next_history_index in
+    iprint prev_lines;
+    next_char prev_lines next_history_index cmd_history editing_row
   | '\x1b' :: '[' :: 'B' :: _ -> (* DOWN *)
     let next_history_index = get_next_index `DOWN history_index cmd_history in
-    let next_line = get_from_history cmd_history next_history_index in
-    iprint next_line;
-    next_char next_line next_history_index cmd_history
-  | '\x1b' :: '[' :: 'C' :: _ -> if col - 1 < String.length line then move_cursor_right (); next_char line history_index cmd_history
-  | '\x1b' :: '[' :: 'D' :: _ -> move_cursor_left (); next_char line history_index cmd_history
+    let next_lines = get_from_history cmd_history next_history_index in
+    iprint next_lines;
+    next_char next_lines next_history_index cmd_history editing_row
+  | '\x1b' :: '[' :: 'C' :: _ ->
+     if col - 1 < (String.length (List.nth lines editing_row) ) then move_cursor_right (); next_char lines history_index cmd_history editing_row
+  | '\x1b' :: '[' :: 'D' :: _ -> 
+    move_cursor_left (); next_char lines history_index cmd_history editing_row
 
   (*  *)
   | '\x1b' :: t -> 
     (match t with 
-    | '\010' :: _ when read_chars = 2 -> line (* alt + enter, submit *)
-    | _ -> next_char line history_index cmd_history) (* uncaught escape seq, do nothing. *)
+    | '\010' :: _ when read_chars = 2 -> lines (* alt + enter, submit *)
+    | _ -> next_char lines history_index cmd_history editing_row) (* uncaught escape seq, do nothing. *)
 
   (* new line *)
-  (* | '\010' :: _ -> let line = (line ^ "\n") in iprint "\n"; next_cmd ~line ~history_index cmd_history *)
+  | '\010' :: _ -> 
+    let insert_row = editing_row in
+    let new_lines = (handle_insert_at insert_row col '\n' lines) @ [""] in
+    iprint new_lines;
+    set_cursor_position (get_next_cursor_position `NEW_LINE row col);
+    next_char new_lines history_index cmd_history (editing_row + 1)
 
   (* delete *)
   | '\127' :: _ -> 
-    let delete_col = if col = 1 then 1 else col - 1 in 
-    let new_line = handle_delete_at delete_col line in 
-    iprint_format "%s" new_line;
-    set_cursor_position (get_next_cursor_position `DELETE row col);
-    next_char new_line history_index cmd_history
+    let delete_col = get_next_col `BACK editing_row col lines in 
+    let (row, tty_row) = get_next_row `BACK editing_row row col lines in
+    let new_lines = handle_delete_at row delete_col lines in 
+    iprint new_lines;
+    set_cursor_position (get_next_cursor_position `DELETE tty_row delete_col);
+    next_char new_lines history_index cmd_history row
 
   (* all other chars, put if single char otherwise do nothing. *)
-  | c :: _ when read_chars = 1 && c != '\n' -> 
-    let new_line = handle_insert_at col c line in
-    iprint_format "%s" new_line;
+  | c :: _ when read_chars = 1 -> 
+    let new_lines = handle_insert_at editing_row col c lines in
+    iprint new_lines;
+    (* iprint_format "%d" insert_row; *)
     set_cursor_position (get_next_cursor_position `INSERT row col);
-    next_char new_line history_index cmd_history
+    next_char new_lines history_index cmd_history editing_row
 
-  | _ -> next_char line history_index cmd_history
+  | _ -> next_char lines history_index cmd_history editing_row
 
 
-let next_cmd cmd_history = next_char "" (-1) cmd_history
+let next_cmd cmd_history = 
+  String.concat "" (next_char [""] (-1) cmd_history 0)
