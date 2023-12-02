@@ -7,6 +7,11 @@ open Extensions
 
 let iprint_escape_code esc = printf "%s" esc
 let clear_line () =  iprint_escape_code "\r\x1b[K"
+
+let clear_screen_from_cursor_down () = iprint_escape_code "\r\x1b[0J"
+let scroll_window_down_one_line () = iprint_escape_code "\x1b[M"
+let clear_from_cursor () = clear_screen_from_cursor_down (); scroll_window_down_one_line ()
+
 let move_cursor_right () = iprint_escape_code "\x1b[C"
 let move_cursor_left () = iprint_escape_code "\x1b[D"
 
@@ -140,11 +145,13 @@ let rec next_char lines history_index cmd_history editing_row =
   | '\x1b' :: '[' :: 'A' :: _ -> (* UP *)
     let next_history_index = get_next_index `UP history_index cmd_history in
     let prev_lines = get_from_history cmd_history next_history_index in
+    set_cursor_position (row - (List.length prev_lines - 1), 1);
     iprint prev_lines;
     next_char prev_lines next_history_index cmd_history editing_row
   | '\x1b' :: '[' :: 'B' :: _ -> (* DOWN *)
     let next_history_index = get_next_index `DOWN history_index cmd_history in
     let next_lines = get_from_history cmd_history next_history_index in
+    set_cursor_position  (row - (List.length next_lines - 1), 1);
     iprint next_lines;
     next_char next_lines next_history_index cmd_history editing_row
   | '\x1b' :: '[' :: 'C' :: _ ->
@@ -158,30 +165,38 @@ let rec next_char lines history_index cmd_history editing_row =
     | '\010' :: _ when read_chars = 2 -> lines (* alt + enter, submit *)
     | _ -> next_char lines history_index cmd_history editing_row) (* uncaught escape seq, do nothing. *)
 
+  (* | ' ' ::  _ -> set_cursor_position (row - (List.length lines - 1), 1); remove_line (); next_char [""] history_index cmd_history editing_row *)
+
   (* new line *)
   | '\010' :: _ -> 
-    let insert_row = editing_row in
-    let new_lines = (handle_insert_at insert_row col '\n' lines) @ [""] in
+    let new_lines = (handle_insert_at editing_row col '\n' lines) @ [""] in
+    set_cursor_position (row - (List.length lines - 1), 1);
+    clear_from_cursor ();
     iprint new_lines;
     set_cursor_position (get_next_cursor_position `NEW_LINE row col);
     next_char new_lines history_index cmd_history (editing_row + 1)
 
   (* delete *)
   | '\127' :: _ -> 
-    let delete_col = get_next_col `BACK editing_row col lines in 
-    let (row, tty_row) = get_next_row `BACK editing_row row col lines in
-    let new_lines = handle_delete_at row delete_col lines in 
+    let col_to_delete = get_next_col `BACK editing_row col lines in 
+    let (erow, row_in_tty) = get_next_row `BACK editing_row row col lines in
+    let new_lines = handle_delete_at erow col_to_delete lines in 
+    (* Remove the trailing empty line. *)
+    let new_lines = if col_to_delete > col then List.rev (List.tl (List.rev new_lines)) else new_lines in
+    set_cursor_position (row - (List.length new_lines - 1), 1); 
+    clear_from_cursor ();
     iprint new_lines;
-    set_cursor_position (get_next_cursor_position `DELETE tty_row delete_col);
-    next_char new_lines history_index cmd_history row
+    set_cursor_position (get_next_cursor_position `DELETE row_in_tty col_to_delete);
+    next_char new_lines history_index cmd_history erow 
 
   (* all other chars, put if single char otherwise do nothing. *)
   | c :: _ when read_chars = 1 -> 
     let new_lines = handle_insert_at editing_row col c lines in
+    set_cursor_position (row - (List.length lines - 1), 1); 
+    clear_from_cursor ();
     iprint new_lines;
-    (* iprint_format "%d" insert_row; *)
     set_cursor_position (get_next_cursor_position `INSERT row col);
-    next_char new_lines history_index cmd_history editing_row
+    next_char new_lines history_index cmd_history editing_row 
 
   | _ -> next_char lines history_index cmd_history editing_row
 
