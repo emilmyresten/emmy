@@ -37,6 +37,9 @@ let rec do_parse chars =
         | DIVISION ->
             let chars = eat DIVISION chars in
             parse_binop_expr Division chars
+        | MOD ->
+            let chars = eat MOD chars in
+            parse_binop_expr Mod chars
         | EQUALS ->
             let chars = eat EQUALS chars in
             parse_binop_expr Equals chars

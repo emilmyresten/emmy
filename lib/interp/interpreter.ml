@@ -129,6 +129,7 @@ and step_binop expr ctx =
   | Binop (Minus, Integer lhs, Integer rhs) -> (Integer (lhs - rhs), ctx)
   | Binop (Times, Integer lhs, Integer rhs) -> (Integer (lhs * rhs), ctx)
   | Binop (Division, Integer lhs, Integer rhs) -> (Integer (lhs / rhs), ctx)
+  | Binop (Mod, Integer lhs, Integer rhs) -> (Integer (lhs mod rhs), ctx)
   (* Strings *)
   | Binop (Plus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)

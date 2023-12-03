@@ -33,6 +33,8 @@ and string_of_binop binop =
       sprintf "(* %s %s)" (string_of_expr lhs) (string_of_expr rhs)
   | Division, lhs, rhs ->
       sprintf "(/ %s %s)" (string_of_expr lhs) (string_of_expr rhs)
+  | Mod, lhs, rhs ->
+      sprintf "(%% %s %s)" (string_of_expr lhs) (string_of_expr rhs)
   | Equals, lhs, rhs ->
       sprintf "(= %s %s)" (string_of_expr lhs) (string_of_expr rhs)
   | LessThan, lhs, rhs ->

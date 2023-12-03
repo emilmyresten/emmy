@@ -1,7 +1,11 @@
 ### Interp
 Tree-walking interpreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
 
-![](assets/example.png)
+`Calculate the nth fibonacci number`:
+![](assets/fibonacci.png)
+
+`Calculate the number of iterations before the Collatz equation reaches 1:`
+![](assets/collatz.png)
 
 ### Build & run:
 

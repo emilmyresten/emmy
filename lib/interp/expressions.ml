@@ -1,4 +1,4 @@
-type binop = Plus | Minus | Times | Division | Equals | LessThan
+type binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
 
 type expression =
   | Def of string * expression

@@ -15,6 +15,7 @@ type token_type =
   | MINUS
   | TIMES
   | DIVISION
+  | MOD
   | TRUE
   | FALSE
   | EQUALS
@@ -43,6 +44,7 @@ let string_of_token_type = function
   | MINUS -> "-"
   | TIMES -> "*"
   | DIVISION -> "/"
+  | MOD -> "%"
   | EQUALS -> "="
   | LESS_THAN -> "<"
   | TRUE -> "true"

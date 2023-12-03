@@ -60,6 +60,7 @@ let rec next_token chars =
   | '-' :: t -> (Token (MINUS, reified_position ()), t)
   | '*' :: t -> (Token (TIMES, reified_position ()), t)
   | '/' :: t -> (Token (DIVISION, reified_position ()), t)
+  | '%' :: t -> (Token (MOD, reified_position ()), t)
   | '=' :: ' ' :: t -> (Token (EQUALS, reified_position ()), t)
   | '<' :: ' ' :: t -> (Token (LESS_THAN, reified_position ()), t)
   | '"' :: t -> lex_string t
@@ -84,6 +85,7 @@ let rec peek chars =
   | '-' :: _ -> MINUS
   | '*' :: _ -> TIMES
   | '/' :: _ -> DIVISION
+  | '%' :: _ -> MOD
   | '=' :: ' ' :: _ -> EQUALS
   | '<' :: ' ' :: _ -> LESS_THAN
   | '"' :: t -> peek_string t
