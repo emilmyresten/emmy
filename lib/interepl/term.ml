@@ -130,6 +130,12 @@ let get_next_cursor_position t row col =
   | `DELETE -> if col < 0 then (row, 0) else (row, col)
   | `NEW_LINE -> (row + 1, 0)
 
+let get_indentation lines = 2 * List.length lines
+
+let get_indented_newline lines =
+  let indentation = get_indentation lines in
+  String.make indentation ' '
+
 let rec next_char lines history_index cmd_history editing_row =
   flush Stdlib.stdout;
   let row, col = get_cursor_position () in
@@ -168,11 +174,13 @@ let rec next_char lines history_index cmd_history editing_row =
       )
   (* new line *)
   | '\010' :: _ ->
-      let new_lines = handle_insert_at editing_row col '\n' lines @ [ "" ] in
+      let new_lines =
+        handle_insert_at editing_row col '\n' lines
+        @ [ get_indented_newline lines ]
+      in
       set_cursor_position (row - (List.length lines - 1), 1);
       clear_from_cursor ();
       iprint new_lines;
-      set_cursor_position (get_next_cursor_position `NEW_LINE row col);
       next_char new_lines history_index cmd_history (editing_row + 1)
   (* delete *)
   | '\127' :: _ ->
@@ -180,17 +188,17 @@ let rec next_char lines history_index cmd_history editing_row =
       let erow, row_in_tty = get_next_row `BACK editing_row row col lines in
       let new_lines = handle_delete_at erow col_to_delete lines in
       (* Remove the trailing empty line. *)
-      let new_lines =
-        if col_to_delete >= col then List.rev (List.tl (List.rev new_lines))
-        else new_lines
-      in
       set_cursor_position (row - (List.length new_lines - 1), 1);
       clear_from_cursor ();
-      iprint new_lines;
-      (* iprint_format "lenght of new_lines: %d" (List.length new_lines); *)
+      let trimmed_new_lines =
+        if col_to_delete >= col && List.length new_lines > 1 then
+          List.rev (List.tl (List.rev new_lines))
+        else new_lines
+      in
+      iprint trimmed_new_lines;
       set_cursor_position
         (get_next_cursor_position `DELETE row_in_tty col_to_delete);
-      next_char new_lines history_index cmd_history erow
+      next_char trimmed_new_lines history_index cmd_history erow
   (* all other chars, put if single char otherwise do nothing. *)
   | c :: _ when read_chars = 1 ->
       let new_lines = handle_insert_at editing_row col c lines in
