@@ -207,6 +207,16 @@ let suite =
      ( less_than_or_eq,
        `Quick,
        simple_interp_test less_than_or_eq expected_result ));
+    (let collatz =
+       "(def collatz\n\
+       \        (fn x count -> \n\
+       \          (cond\n\
+       \           (= x 1) count\n\
+       \           (= (% x 2) 0) (collatz (/ x 2) (+ count 1))\n\
+       \           (collatz (+ (* 3 x) 1) (+ count 1))))); \n\
+       \ (collatz 10 0)"
+     and expected_result = "Integer 6" in
+     (collatz, `Quick, simple_interp_test collatz expected_result));
   ]
 
 let interp_tests () = Alcotest.run "Interp" [ ("E2E", suite) ]

@@ -5,6 +5,17 @@ open Extensions
 (* escape code in hex: \x1b, in decimal: \x1b*)
 (* Escape codes can be found here: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm *)
 
+type keys =
+  | ARROW_UP
+  | ARROW_DOWN
+  | ARROW_LEFT
+  | ARROW_RIGHT
+  | ALT_ENTER
+  | ENTER
+  | DELETE
+  | CHARACTER of char
+  | UNMAPPED
+
 let iprint_escape_code esc = printf "%s" esc
 let clear_line () = iprint_escape_code "\r\x1b[K"
 let clear_screen_from_cursor_down () = iprint_escape_code "\r\x1b[0J"
@@ -136,44 +147,47 @@ let get_indented_newline lines =
   let indentation = get_indentation lines in
   String.make indentation ' '
 
-let rec next_char lines history_index cmd_history editing_row =
-  flush Stdlib.stdout;
-  let row, col = get_cursor_position () in
+let next_key () =
   let char_list, read_chars = read_bytes () in
   match char_list with
   (* arrow keys *)
-  | '\x1b' :: '[' :: 'A' :: _ ->
-      (* UP *)
+  | '\x1b' :: '[' :: 'A' :: _ -> ARROW_UP
+  | '\x1b' :: '[' :: 'B' :: _ -> ARROW_DOWN
+  | '\x1b' :: '[' :: 'C' :: _ -> ARROW_RIGHT
+  | '\x1b' :: '[' :: 'D' :: _ -> ARROW_LEFT
+  | '\x1b' :: '\010' :: _ -> ALT_ENTER
+  | '\010' :: _ -> ENTER
+  | '\127' :: _ -> DELETE
+  | c :: _ when read_chars = 1 -> CHARACTER c
+  | _ -> UNMAPPED
+
+let rec next_char lines history_index cmd_history editing_row =
+  flush Stdlib.stdout;
+  let row, col = get_cursor_position () in
+  let key = next_key () in
+  match key with
+  | ARROW_UP ->
       let next_history_index = get_next_index `UP history_index cmd_history in
       let prev_lines = get_from_history cmd_history next_history_index in
       set_cursor_position (row - (List.length prev_lines - 1), 1);
       iprint prev_lines;
       next_char prev_lines next_history_index cmd_history editing_row
-  | '\x1b' :: '[' :: 'B' :: _ ->
+  | ARROW_DOWN ->
       (* DOWN *)
       let next_history_index = get_next_index `DOWN history_index cmd_history in
       let next_lines = get_from_history cmd_history next_history_index in
       set_cursor_position (row - (List.length next_lines - 1), 1);
       iprint next_lines;
       next_char next_lines next_history_index cmd_history editing_row
-  | '\x1b' :: '[' :: 'C' :: _ ->
+  | ARROW_RIGHT ->
       if col - 1 < String.length (List.nth lines editing_row) then
         move_cursor_right ();
       next_char lines history_index cmd_history editing_row
-  | '\x1b' :: '[' :: 'D' :: _ ->
+  | ARROW_LEFT ->
       move_cursor_left ();
       next_char lines history_index cmd_history editing_row
-  (*  *)
-  | '\x1b' :: t -> (
-      match t with
-      | '\010' :: _ when read_chars = 2 -> lines (* alt + enter, submit *)
-      | _ ->
-          next_char lines history_index cmd_history editing_row
-          (* uncaught escape seq, do nothing. *)
-          (* | ' ' ::  _ -> set_cursor_position (row - (List.length lines - 1), 1); remove_line (); next_char [""] history_index cmd_history editing_row *)
-      )
-  (* new line *)
-  | '\010' :: _ ->
+  | ALT_ENTER -> lines
+  | ENTER ->
       let new_lines =
         handle_insert_at editing_row col '\n' lines
         @ [ get_indented_newline lines ]
@@ -182,8 +196,7 @@ let rec next_char lines history_index cmd_history editing_row =
       clear_from_cursor ();
       iprint new_lines;
       next_char new_lines history_index cmd_history (editing_row + 1)
-  (* delete *)
-  | '\127' :: _ ->
+  | DELETE ->
       let col_to_delete = get_next_col `BACK editing_row col lines in
       let erow, row_in_tty = get_next_row `BACK editing_row row col lines in
       let new_lines = handle_delete_at erow col_to_delete lines in
@@ -200,14 +213,14 @@ let rec next_char lines history_index cmd_history editing_row =
         (get_next_cursor_position `DELETE row_in_tty col_to_delete);
       next_char trimmed_new_lines history_index cmd_history erow
   (* all other chars, put if single char otherwise do nothing. *)
-  | c :: _ when read_chars = 1 ->
+  | CHARACTER c ->
       let new_lines = handle_insert_at editing_row col c lines in
       set_cursor_position (row - (List.length lines - 1), 1);
       clear_from_cursor ();
       iprint new_lines;
       set_cursor_position (get_next_cursor_position `INSERT row col);
       next_char new_lines history_index cmd_history editing_row
-  | _ -> next_char lines history_index cmd_history editing_row
+  | UNMAPPED -> next_char lines history_index cmd_history editing_row
 
 let next_cmd cmd_history =
   String.concat "" (next_char [ "" ] (-1) cmd_history 0)
