@@ -217,6 +217,38 @@ let suite =
        \ (collatz 10 0)"
      and expected_result = "Integer 6" in
      (collatz, `Quick, simple_interp_test collatz expected_result));
+    (let let_bindings =
+       "(def l        \n\
+       \            (let [x 4]\n\
+       \                  x));\n\
+       \        l"
+     and expected_result = "Integer 4" in
+     (let_bindings, `Quick, simple_interp_test let_bindings expected_result));
+    (let let_bindings_in_fn =
+       "(def l_fn   \n\
+       \         (fn x ->\n\
+       \            (let [is-zero (= x 0)\n\
+       \                  is-under (< x 0)\n\
+       \                  is-over (< 0 x)]\n\
+       \              (cond\n\
+       \                is-zero \"zero\"\n\
+       \                is-under \"under\"\n\
+       \                is-over \"over\"\n\
+       \                \"default\"))));\n\
+       \              (l_fn 1)"
+     and expected_result = "String over" in
+     ( let_bindings_in_fn,
+       `Quick,
+       simple_interp_test let_bindings_in_fn expected_result ));
+    (let nested_lets =
+       "(def l \n\
+       \          (let [x 4] \n\
+       \            (let [y (+ x 1)]\n\
+       \              y)));\n\n\
+       \                            \n\
+       \        l"
+     and expected_result = "Integer 5" in
+     (nested_lets, `Quick, simple_interp_test nested_lets expected_result));
   ]
 
 let interp_tests () = Alcotest.run "Interp" [ ("E2E", suite) ]

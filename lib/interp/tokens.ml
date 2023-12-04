@@ -8,6 +8,8 @@ type token_position = Position of int * int
 type token_type =
   | LPAREN
   | RPAREN
+  | LBRACKET
+  | RBRACKET
   | DEF
   | FN
   | ARROW
@@ -21,6 +23,7 @@ type token_type =
   | EQUALS
   | LESS_THAN
   | COND
+  | LET
   | INTEGER_TOKEN of int
   | STRING_TOKEN of string
   | IDENTIFIER_TOKEN of string
@@ -30,13 +33,22 @@ type token_type =
 type token = Token of token_type * token_position
 
 let keywords =
-  [ ("def", DEF); ("fn", FN); ("true", TRUE); ("false", FALSE); ("cond", COND) ]
+  [
+    ("def", DEF);
+    ("fn", FN);
+    ("true", TRUE);
+    ("false", FALSE);
+    ("cond", COND);
+    ("let", LET);
+  ]
 
 let get_position = function Token (_, pos) -> pos
 
 let string_of_token_type = function
   | LPAREN -> "("
   | RPAREN -> ")"
+  | LBRACKET -> "["
+  | RBRACKET -> "]"
   | DEF -> "DEF"
   | FN -> "FN"
   | ARROW -> "->"
@@ -50,13 +62,19 @@ let string_of_token_type = function
   | TRUE -> "true"
   | FALSE -> "false"
   | COND -> "cond"
+  | LET -> "let"
   | INTEGER_TOKEN v -> string_of_int v
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
   | UNKNOWN c -> sprintf "UNKNOWN %c" c
   | EOF -> "EOF"
 
-let string_of_token = function Token (tk, _) -> string_of_token_type tk
+let string_of_token_pos = function
+  | Position (row, col) -> sprintf "(%d, %d)" row col
+
+let string_of_token = function
+  | Token (tk, pos) ->
+      sprintf "%s, pos: %s" (string_of_token_type tk) (string_of_token_pos pos)
 
 let get_row_col tok =
   match get_position tok with Position (row, col) -> (row, col)

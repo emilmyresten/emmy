@@ -55,6 +55,8 @@ let rec next_token chars =
       next_token t
   | '(' :: t -> (Token (LPAREN, reified_position ()), t)
   | ')' :: t -> (Token (RPAREN, reified_position ()), t)
+  | '[' :: t -> (Token (LBRACKET, reified_position ()), t)
+  | ']' :: t -> (Token (RBRACKET, reified_position ()), t)
   | '-' :: '>' :: t -> (Token (ARROW, reified_position ()), t)
   | '+' :: t -> (Token (PLUS, reified_position ()), t)
   | '-' :: t -> (Token (MINUS, reified_position ()), t)
@@ -80,6 +82,8 @@ let rec peek chars =
   | '\n' :: t -> peek t
   | '(' :: _ -> LPAREN
   | ')' :: _ -> RPAREN
+  | '[' :: _ -> LBRACKET
+  | ']' :: _ -> RBRACKET
   | '-' :: '>' :: _ -> ARROW
   | '+' :: _ -> PLUS
   | '-' :: _ -> MINUS

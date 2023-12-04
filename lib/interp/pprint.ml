@@ -23,6 +23,11 @@ and string_of_args args =
 and string_of_cond_cases exprs =
   List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" exprs
 
+and string_of_let_bindings bindings =
+  List.fold_left
+    (fun acc (id, expr) -> acc ^ id ^ " " ^ string_of_expr expr ^ " ")
+    "" bindings
+
 and string_of_binop binop =
   match binop with
   | Plus, lhs, rhs ->
@@ -50,6 +55,10 @@ and string_of_expr expr =
       sprintf "(cond %s %s)"
         (string_of_cond_cases exprs)
         (string_of_expr default)
+  | LetBinding (bindings, expr) ->
+      sprintf "let (%s) %s"
+        (string_of_let_bindings bindings)
+        (string_of_expr expr)
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
   | Fn (params, expr) -> string_of_val (Fn (params, expr))
   | Integer _ | String _ | True | False | Unit -> string_of_val expr

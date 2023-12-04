@@ -3,8 +3,9 @@ type binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
 type expression =
   | Def of string * expression
   | Fn of string list * expression
+  (* the expression list is the list of arguments. The evaluation strategy is eager. Call-by-value *)
   | FnInvoke of expression * expression list
-    (* the list of arguments. The evaluation strategy is eager. Call-by-value *)
+  | LetBinding of (string * expression) list * expression
   | Cond of expression list * expression
   | Binop of binop * expression * expression
   | Integer of int

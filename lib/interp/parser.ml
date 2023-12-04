@@ -49,6 +49,9 @@ let rec do_parse chars =
         | COND ->
             let chars = eat COND chars in
             parse_cond_expr chars
+        | LET ->
+            let chars = eat LET chars in
+            parse_let_expr chars
         | FN ->
             let chars = eat FN chars in
             parse_fn_expr chars
@@ -68,7 +71,7 @@ let rec do_parse chars =
           row col
       in
       failwith err_msg
-  | tk -> failwith (sprintf "Unexpected token %s" (string_of_token tk))
+  | tk -> failwith (sprintf "Unexpected token %s " (string_of_token tk))
 
 and parse_def_expr chars =
   let id, chars =
@@ -85,6 +88,29 @@ and parse_binop_expr op chars =
   let lhs, chars = do_parse chars in
   let rhs, chars = do_parse chars in
   (Binop (op, lhs, rhs), chars)
+
+and parse_let_expr chars =
+  let chars = eat LBRACKET chars in
+  let rec parse_let_aux bindings chars =
+    let id, chars = do_parse chars in
+    let id_str =
+      match id with
+      | Identifier id -> id
+      | _ ->
+          failwith
+            (sprintf "lhs in let-binding must be identifier, found %s."
+               (Pprint.string_of_expr id))
+    in
+    let expr, chars = do_parse chars in
+    printf "found %s\n" (Pprint.string_of_expr expr);
+    if peek chars = RBRACKET then
+      let chars = eat RBRACKET chars in
+      ((id_str, expr) :: bindings, chars)
+    else parse_let_aux ((id_str, expr) :: bindings) chars
+  in
+  let bindings, chars = parse_let_aux [] chars in
+  let expr, chars = do_parse chars in
+  (LetBinding (bindings, expr), chars)
 
 and parse_cond_expr chars =
   let rec parse_cond_aux exprs chars =

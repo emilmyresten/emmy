@@ -44,8 +44,15 @@ let rec beta_reduce param_ids args expr =
       Cond
         ( List.map (fun expr -> beta_reduce param_ids args expr) exprs,
           beta_reduce param_ids args default )
+  | LetBinding (bindings, expr) ->
+      let beta_reduced_bindings =
+        List.map
+          (fun (id, expr) -> (id, beta_reduce param_ids args expr))
+          bindings
+      in
+      LetBinding (beta_reduced_bindings, beta_reduce param_ids args expr)
 
-and alpha_convert bindings replace expr =
+and alpha_convert scope replace expr =
   (* [bindings: list of seen bindings.
       replace: look in this associative list/map to find replacement names for the current.]*)
   (* Rename nested identifiers to resolve scope conflicts.
@@ -55,34 +62,47 @@ and alpha_convert bindings replace expr =
       match List.assoc_opt id replace with
       | Some name -> Identifier name
       | None -> expr)
-  | Def (_, expr) -> alpha_convert bindings replace expr
+  | Def (_, expr) -> alpha_convert scope replace expr
   | Fn (params, expr) ->
-      let conflicts = List.overlap bindings params in
+      let conflicts = List.overlap scope params in
       (* replace these *)
-      let bind = List.unique_right bindings params in
+      let bind = List.unique_right scope params in
       (* add these to the seen bindings *)
       let new_replace =
         List.fold_left
-          (fun a p -> [ (p, get_unique_name p bindings) ] @ a)
+          (fun a p -> [ (p, get_unique_name p scope) ] @ a)
           [] conflicts
       in
       let new_params = List.map (fun (_, v) -> v) new_replace @ bind in
-      let new_bindings = new_params @ bind @ bindings in
-      Fn (new_params, alpha_convert new_bindings new_replace expr)
+      let new_scope = new_params @ bind @ scope in
+      Fn (new_params, alpha_convert new_scope new_replace expr)
   | FnInvoke (to_apply, args) ->
       FnInvoke
-        ( alpha_convert bindings replace to_apply,
-          List.map (fun arg -> alpha_convert bindings replace arg) args )
+        ( alpha_convert scope replace to_apply,
+          List.map (fun arg -> alpha_convert scope replace arg) args )
   | Binop (op, lhs, rhs) ->
       Binop
-        ( op,
-          alpha_convert bindings replace lhs,
-          alpha_convert bindings replace rhs )
+        (op, alpha_convert scope replace lhs, alpha_convert scope replace rhs)
   | True | False | Integer _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (fun expr -> alpha_convert bindings replace expr) exprs,
-          alpha_convert bindings replace default )
+        ( List.map (fun expr -> alpha_convert scope replace expr) exprs,
+          alpha_convert scope replace default )
+  | LetBinding (bnds, expr) ->
+      let bindings = List.map (fun (id, _) -> id) bnds in
+      let conflicts = List.overlap scope bindings in
+      let bind = List.unique_right scope bindings in
+      let new_replace =
+        List.fold_left
+          (fun a p -> [ (p, get_unique_name p scope) ] @ a)
+          [] conflicts
+      in
+      let new_let_bindings = List.map (fun (_, v) -> v) new_replace @ bind in
+      let new_bnds =
+        List.map (fun (_, v) -> v) bnds |> List.combine new_let_bindings
+      in
+      let new_scope = new_let_bindings @ bind @ scope in
+      LetBinding (new_bnds, alpha_convert new_scope new_replace expr)
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
 let check_arity params args = List.length args = List.length params
@@ -121,6 +141,21 @@ let rec step expr ctx =
       (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
   | Cond (exprs, default) -> lazy_step_cond (exprs, default) ctx
+  | LetBinding (bindings, expr)
+    when List.for_all (fun (_, expr) -> is_value expr) bindings ->
+      let binding_ids = List.map (fun (id, _) -> id) bindings in
+      let binding_exprs = List.map (fun (_, expr) -> expr) bindings in
+      let alpha_converted = alpha_convert binding_ids [] expr in
+      let beta_reduced =
+        beta_reduce binding_ids binding_exprs alpha_converted
+      in
+      (fst (step beta_reduced ctx), ctx)
+      (* need to beta-reduce here. *)
+  | LetBinding (bindings, expr) ->
+      let stepped_bindings =
+        List.map (fun (id, expr) -> (id, fst (step expr ctx))) bindings
+      in
+      (LetBinding (stepped_bindings, expr), ctx)
 
 and step_binop expr ctx =
   match expr with
