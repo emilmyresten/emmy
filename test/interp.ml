@@ -248,6 +248,8 @@ let suite =
        \        f"
      and expected_result = "3" in
      (fns_in_let, `Quick, simple_interp_test fns_in_let expected_result));
+    (let lists_test = "(def f [1 2 3]); f" and expected_result = "[1 2 3]" in
+     (lists_test, `Quick, simple_interp_test lists_test expected_result));
   ]
 
 let interp_tests () = Alcotest.run "Interp" [ ("E2E", suite) ]
