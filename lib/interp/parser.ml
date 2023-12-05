@@ -59,6 +59,7 @@ let rec do_parse chars =
       in
       let chars = eat RPAREN chars in
       (expr, chars)
+  | Token (LBRACKET, _) -> parse_list_ds chars
   | Token (TRUE, _) -> (True, chars)
   | Token (FALSE, _) -> (False, chars)
   | Token (INTEGER_TOKEN v, _) -> (Integer v, chars)
@@ -72,6 +73,18 @@ let rec do_parse chars =
       in
       failwith err_msg
   | tk -> failwith (sprintf "Unexpected token %s " (string_of_token tk))
+
+and parse_list_ds chars =
+  let rec parse_list_aux exprs chars =
+    let expr, chars = do_parse chars in
+    match peek chars with
+    | RBRACKET ->
+        let chars = eat RBRACKET chars in
+        (expr :: exprs, chars)
+    | _ -> parse_list_aux (expr :: exprs) chars
+  in
+  let exprs, chars = parse_list_aux [] chars in
+  (List (List.rev exprs), chars)
 
 and parse_def_expr chars =
   let id, chars =
@@ -102,7 +115,6 @@ and parse_let_expr chars =
                (Pprint.string_of_expr id))
     in
     let expr, chars = do_parse chars in
-    printf "found %s\n" (Pprint.string_of_expr expr);
     if peek chars = RBRACKET then
       let chars = eat RBRACKET chars in
       ((id_str, expr) :: bindings, chars)

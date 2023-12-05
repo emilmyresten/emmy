@@ -35,14 +35,14 @@ let rec beta_reduce param_ids args expr =
   | Def (id, expr) -> Def (id, beta_reduce param_ids args expr)
   | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
   | FnInvoke (to_apply, fn_args) ->
-      FnInvoke
-        (to_apply, List.map (fun arg -> beta_reduce param_ids args arg) fn_args)
+      FnInvoke (to_apply, List.map (beta_reduce param_ids args) fn_args)
   | Binop (op, lhs, rhs) ->
       Binop (op, beta_reduce param_ids args lhs, beta_reduce param_ids args rhs)
+  | List exprs -> List (List.map (beta_reduce param_ids args) exprs)
   | True | False | Integer _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (fun expr -> beta_reduce param_ids args expr) exprs,
+        ( List.map (beta_reduce param_ids args) exprs,
           beta_reduce param_ids args default )
   | LetBinding (bindings, expr) ->
       let beta_reduced_bindings =
@@ -79,14 +79,15 @@ and alpha_convert scope replace expr =
   | FnInvoke (to_apply, args) ->
       FnInvoke
         ( alpha_convert scope replace to_apply,
-          List.map (fun arg -> alpha_convert scope replace arg) args )
+          List.map (alpha_convert scope replace) args )
   | Binop (op, lhs, rhs) ->
       Binop
         (op, alpha_convert scope replace lhs, alpha_convert scope replace rhs)
+  | List exprs -> List (List.map (alpha_convert scope replace) exprs)
   | True | False | Integer _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (fun expr -> alpha_convert scope replace expr) exprs,
+        ( List.map (alpha_convert scope replace) exprs,
           alpha_convert scope replace default )
   | LetBinding (bnds, expr) ->
       let bindings = List.map (fun (id, _) -> id) bnds in
@@ -106,7 +107,6 @@ and alpha_convert scope replace expr =
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
 let check_arity params args = List.length args = List.length params
-let is_list_of_values exprs = List.for_all (fun m -> is_value m) exprs
 
 let rec step expr ctx =
   match expr with
@@ -135,6 +135,8 @@ let rec step expr ctx =
   | Binop (op, lhs, rhs) when is_value lhs ->
       (Binop (op, lhs, fst (step rhs ctx)), ctx)
   | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
+  | List exprs when is_list_of_values exprs -> (List exprs, ctx)
+  | List exprs -> (List (List.map (fun expr -> fst (step expr ctx)) exprs), ctx)
   | True | False | Integer _ | String _ -> (expr, ctx)
   | Identifier id ->
       let value = get_from_ctx id ctx in

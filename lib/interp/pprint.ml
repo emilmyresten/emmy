@@ -3,30 +3,25 @@ open Expressions
 
 let rec string_of_val v =
   match v with
-  | Integer v -> sprintf "Integer %d" v
-  | String str -> sprintf "String %s" str
+  | Integer v -> sprintf "%d" v
+  | String str -> sprintf "\"%s\"" str
   | True -> sprintf "true"
   | False -> sprintf "false"
   | Unit -> "Unit"
   | Fn (params, expr) ->
-      sprintf "(Function %s-> %s)" (string_of_params params)
+      sprintf "(function %s -> %s)" (string_of_params params)
         (string_of_expr expr)
   | Identifier id -> id
   | _ -> failwith (sprintf "Expected value, found %s" (string_of_expr v))
 
-and string_of_params params =
-  List.fold_left (fun acc m -> acc ^ m ^ " ") "" params
+and string_of_params params = String.concat " " params
 
-and string_of_args args =
-  List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" args
+and string_of_expr_list exprs =
+  List.map (fun m -> string_of_expr m) exprs |> String.concat " "
 
-and string_of_cond_cases exprs =
-  List.fold_left (fun acc m -> acc ^ string_of_expr m ^ " ") "" exprs
-
-and string_of_let_bindings bindings =
-  List.fold_left
-    (fun acc (id, expr) -> acc ^ id ^ " " ^ string_of_expr expr ^ " ")
-    "" bindings
+and string_of_bindings bindings =
+  List.map (fun (id, expr) -> id ^ " " ^ string_of_expr expr) bindings
+  |> String.concat " "
 
 and string_of_binop binop =
   match binop with
@@ -50,20 +45,18 @@ and string_of_expr expr =
   | Def (id, expr) -> sprintf "(def %s %s)" id (string_of_expr expr)
   | Identifier id -> sprintf "Identifier %s" id
   | FnInvoke (to_apply, args) ->
-      sprintf "%s %s" (string_of_expr to_apply) (string_of_args args)
+      sprintf "%s %s" (string_of_expr to_apply) (string_of_expr_list args)
   | Cond (exprs, default) ->
       sprintf "(cond %s %s)"
-        (string_of_cond_cases exprs)
+        (string_of_expr_list exprs)
         (string_of_expr default)
   | LetBinding (bindings, expr) ->
-      sprintf "let (%s) %s"
-        (string_of_let_bindings bindings)
-        (string_of_expr expr)
+      sprintf "let (%s) %s" (string_of_bindings bindings) (string_of_expr expr)
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
   | Fn (params, expr) -> string_of_val (Fn (params, expr))
+  | List exprs -> sprintf "[%s]" (string_of_expr_list exprs)
   | Integer _ | String _ | True | False | Unit -> string_of_val expr
 
 and string_of_context ctx =
-  List.fold_left
-    (fun a (k, v) -> a ^ sprintf "%s = %s\n" k (string_of_val v))
-    "" ctx
+  List.map (fun (k, v) -> sprintf "%s = %s\n" k (string_of_val v)) ctx
+  |> String.concat ""
