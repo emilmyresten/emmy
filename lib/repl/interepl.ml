@@ -1,5 +1,5 @@
 open Term
-open Interp
+open Emmy
 
 let rec loop ctx cmd_history =
   let read = next_cmd cmd_history in

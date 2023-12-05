@@ -1,6 +1,6 @@
 (lang dune 3.11)
 
-(name interp)
+(name emmy)
 
 (generate_opam_files true)
 
@@ -16,10 +16,13 @@
 (documentation https://url/to/documentation)
 
 (package
- (name interp)
+ (name emmy)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune (alcotest :with-test))
+ (depends
+  ocaml
+  dune
+  (alcotest :with-test))
  (tags
   (topics "to describe" your project)))
 

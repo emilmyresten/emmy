@@ -1,3 +1,3 @@
 (test
- (name interp)
- (libraries interp alcotest))
+ (name emmy)
+ (libraries emmy alcotest))

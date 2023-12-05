@@ -1,5 +1,5 @@
-### Interp
-Tree-walking interpreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
+### Emmy
+Tree-walking emmyreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
 
 `Calculate the nth fibonacci number`:
 ![](assets/fibonacci.png)
@@ -10,7 +10,7 @@ Tree-walking interpreter implementation of a LISP-type language implemented in O
 ### Build & run:
 
 `opam install --deps-only --with-test .`
-`dune exec interp`
+`dune exec emmy`
 
 #### Tests:
 Testing is done with [alcotest](https://github.com/mirage/alcotest).
@@ -19,7 +19,7 @@ Testing is done with [alcotest](https://github.com/mirage/alcotest).
 
 ### Debug:
 
-`ocamldebug _build/install/default/bin/interp`
+`ocamldebug _build/install/default/bin/emmy`
 
 `(ocd) info modules`
 

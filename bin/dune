@@ -1,6 +1,6 @@
 (executable
- (public_name interp)
+ (public_name emmy)
  (name main)
  (modes byte)
  (modules main)
- (libraries unix interepl interp extensions))
+ (libraries unix interepl emmy extensions))

@@ -1,0 +1,3 @@
+(library
+ (name interepl)
+ (libraries unix emmy extensions))
