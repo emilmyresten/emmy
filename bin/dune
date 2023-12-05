@@ -3,4 +3,4 @@
  (name main)
  (modes byte)
  (modules main)
- (libraries unix interepl emmy extensions))
+ (libraries unix repl emmy extensions))

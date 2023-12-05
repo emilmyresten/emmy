@@ -1,3 +1,3 @@
-open Interepl
+open Repl
 
 let () = start_repl ()
