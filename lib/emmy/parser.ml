@@ -165,12 +165,13 @@ and aux_parse_arg_list args chars =
       aux_parse_arg_list (arg :: args) chars
 
 and aux_parse_list_ds exprs chars =
-  let expr, chars = do_parse chars in
   match peek chars with
   | RBRACKET ->
       let chars = eat RBRACKET chars in
-      (List.rev (expr :: exprs), chars)
-  | _ -> aux_parse_list_ds (expr :: exprs) chars
+      (List.rev exprs, chars)
+  | _ ->
+      let expr, chars = do_parse chars in
+      aux_parse_list_ds (expr :: exprs) chars
 
 let parse chars =
   let ast, rem = do_parse chars in
