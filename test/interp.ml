@@ -240,6 +240,14 @@ let suite =
        \        l"
      and expected_result = "5" in
      (nested_lets, `Quick, simple_interp_test nested_lets expected_result));
+    (let fns_in_let =
+       "(def f\n\
+       \          (let [x (fn y -> (+ y 1))] \n\
+       \            (x 2)));\n\n\
+       \                            \n\
+       \        f"
+     and expected_result = "3" in
+     (fns_in_let, `Quick, simple_interp_test fns_in_let expected_result));
   ]
 
 let interp_tests () = Alcotest.run "Interp" [ ("E2E", suite) ]

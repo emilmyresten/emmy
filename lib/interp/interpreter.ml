@@ -29,8 +29,10 @@ let rec beta_reduce param_ids args expr =
             | None -> failwith "Wrong arity!")
         | None ->
             failwith
-              "Identifier id is member of the parameter list, but couldn't \
-               find index during beta-reduction."
+              (sprintf
+                 "Identifier %s is member of the parameter list, but couldn't \
+                  find index during beta-reduction."
+                 id)
       else expr
   | Def (id, expr) -> Def (id, beta_reduce param_ids args expr)
   | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
@@ -52,17 +54,17 @@ let rec beta_reduce param_ids args expr =
       in
       LetBinding (beta_reduced_bindings, beta_reduce param_ids args expr)
 
-and alpha_convert scope replace expr =
+and alpha_convert scope replacements expr =
   (* [bindings: list of seen bindings.
       replace: look in this associative list/map to find replacement names for the current.]*)
   (* Rename nested identifiers to resolve scope conflicts.
      As soon as bindings occur in two scopes, all subsequent have to be renamed to the binding of the nearest scope. *)
   match expr with
   | Identifier id -> (
-      match List.assoc_opt id replace with
+      match List.assoc_opt id replacements with
       | Some name -> Identifier name
       | None -> expr)
-  | Def (_, expr) -> alpha_convert scope replace expr
+  | Def (_, expr) -> alpha_convert scope replacements expr
   | Fn (params, expr) ->
       let conflicts = List.overlap scope params in
       (* replace these *)
@@ -78,17 +80,19 @@ and alpha_convert scope replace expr =
       Fn (new_params, alpha_convert new_scope new_replace expr)
   | FnInvoke (to_apply, args) ->
       FnInvoke
-        ( alpha_convert scope replace to_apply,
-          List.map (alpha_convert scope replace) args )
+        ( alpha_convert scope replacements to_apply,
+          List.map (alpha_convert scope replacements) args )
   | Binop (op, lhs, rhs) ->
       Binop
-        (op, alpha_convert scope replace lhs, alpha_convert scope replace rhs)
-  | List exprs -> List (List.map (alpha_convert scope replace) exprs)
+        ( op,
+          alpha_convert scope replacements lhs,
+          alpha_convert scope replacements rhs )
+  | List exprs -> List (List.map (alpha_convert scope replacements) exprs)
   | True | False | Integer _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (alpha_convert scope replace) exprs,
-          alpha_convert scope replace default )
+        ( List.map (alpha_convert scope replacements) exprs,
+          alpha_convert scope replacements default )
   | LetBinding (bnds, expr) ->
       let bindings = List.map (fun (id, _) -> id) bnds in
       let conflicts = List.overlap scope bindings in
@@ -151,7 +155,7 @@ let rec step expr ctx =
       let beta_reduced =
         beta_reduce binding_ids binding_exprs alpha_converted
       in
-      (fst (step beta_reduced ctx), ctx)
+      (fst (step beta_reduced (bindings @ ctx)), ctx)
       (* need to beta-reduce here. *)
   | LetBinding (bindings, expr) ->
       let stepped_bindings =

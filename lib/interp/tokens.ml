@@ -49,8 +49,8 @@ let string_of_token_type = function
   | RPAREN -> ")"
   | LBRACKET -> "["
   | RBRACKET -> "]"
-  | DEF -> "DEF"
-  | FN -> "FN"
+  | DEF -> "keyword def"
+  | FN -> "keyword fn"
   | ARROW -> "->"
   | PLUS -> "+"
   | MINUS -> "-"
@@ -61,8 +61,8 @@ let string_of_token_type = function
   | LESS_THAN -> "<"
   | TRUE -> "true"
   | FALSE -> "false"
-  | COND -> "cond"
-  | LET -> "let"
+  | COND -> "keyword cond"
+  | LET -> "keyword let"
   | INTEGER_TOKEN v -> string_of_int v
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
