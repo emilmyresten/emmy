@@ -4,7 +4,7 @@ type expression =
   | Def of string * expression
   | Fn of string list * expression
   (* the expression list is the list of arguments. The evaluation strategy is eager. Call-by-value *)
-  | FnInvoke of expression * expression list
+  | Invoke of expression * expression list
   | LetBinding of (string * expression) list * expression
   | Cond of expression list * expression
   | Binop of binop * expression * expression

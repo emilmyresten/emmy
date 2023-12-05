@@ -44,7 +44,7 @@ and string_of_expr expr =
   match expr with
   | Def (id, expr) -> sprintf "(def %s %s)" id (string_of_expr expr)
   | Identifier id -> sprintf "Identifier %s" id
-  | FnInvoke (to_apply, args) ->
+  | Invoke (to_apply, args) ->
       sprintf "%s %s" (string_of_expr to_apply) (string_of_expr_list args)
   | Cond (exprs, default) ->
       sprintf "(cond %s %s)"

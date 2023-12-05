@@ -55,7 +55,7 @@ let rec do_parse chars =
         | FN ->
             let chars = eat FN chars in
             parse_fn_expr chars
-        | _ -> parse_fn_invoke_expr chars
+        | _ -> parse_invoke_expr chars
       in
       let chars = eat RPAREN chars in
       (expr, chars)
@@ -75,16 +75,8 @@ let rec do_parse chars =
   | tk -> failwith (sprintf "Unexpected token %s " (string_of_token tk))
 
 and parse_list_ds chars =
-  let rec parse_list_aux exprs chars =
-    let expr, chars = do_parse chars in
-    match peek chars with
-    | RBRACKET ->
-        let chars = eat RBRACKET chars in
-        (expr :: exprs, chars)
-    | _ -> parse_list_aux (expr :: exprs) chars
-  in
-  let exprs, chars = parse_list_aux [] chars in
-  (List (List.rev exprs), chars)
+  let exprs, chars = aux_parse_list_ds [] chars in
+  (List exprs, chars)
 
 and parse_def_expr chars =
   let id, chars =
@@ -158,19 +150,27 @@ and parse_fn_expr chars =
   let expr, chars = do_parse chars in
   (Fn (params, expr), chars)
 
-and parse_fn_invoke_expr chars =
-  let rec get_args_aux args_acc chars =
-    match peek chars with
-    | RPAREN ->
-        (List.rev args_acc, chars)
-        (* we want to keep parsing the arguments until we hit the closing bracket of the function invocation. *)
-    | _ ->
-        let arg, chars = do_parse chars in
-        get_args_aux (arg :: args_acc) chars
-  in
+and parse_invoke_expr chars =
   let to_apply, chars = do_parse chars in
-  let args, chars = get_args_aux [] chars in
-  (FnInvoke (to_apply, args), chars)
+  let args, chars = aux_parse_arg_list [] chars in
+  (Invoke (to_apply, args), chars)
+
+and aux_parse_arg_list args chars =
+  match peek chars with
+  | RPAREN ->
+      (List.rev args, chars)
+      (* we want to keep parsing the arguments until we hit the closing bracket of the function invocation. *)
+  | _ ->
+      let arg, chars = do_parse chars in
+      aux_parse_arg_list (arg :: args) chars
+
+and aux_parse_list_ds exprs chars =
+  let expr, chars = do_parse chars in
+  match peek chars with
+  | RBRACKET ->
+      let chars = eat RBRACKET chars in
+      (List.rev (expr :: exprs), chars)
+  | _ -> aux_parse_list_ds (expr :: exprs) chars
 
 let parse chars =
   let ast, rem = do_parse chars in

@@ -17,16 +17,13 @@ let rec get_unique_name p bindings =
   if List.mem name_attempt bindings then get_unique_name p bindings
   else name_attempt
 
-let rec beta_reduce param_ids args expr =
+let rec beta_reduce param_ids replacements expr =
   match expr with
   | Identifier id ->
       if List.mem id param_ids then
         let param_position_opt = List.find_index (fun m -> m = id) param_ids in
         match param_position_opt with
-        | Some pos -> (
-            match List.nth_opt args pos with
-            | Some elem -> elem
-            | None -> failwith "Wrong arity!")
+        | Some pos -> List.nth replacements pos
         | None ->
             failwith
               (sprintf
@@ -34,25 +31,28 @@ let rec beta_reduce param_ids args expr =
                   find index during beta-reduction."
                  id)
       else expr
-  | Def (id, expr) -> Def (id, beta_reduce param_ids args expr)
-  | Fn (params, expr) -> Fn (params, beta_reduce param_ids args expr)
-  | FnInvoke (to_apply, fn_args) ->
-      FnInvoke (to_apply, List.map (beta_reduce param_ids args) fn_args)
+  | Def (id, expr) -> Def (id, beta_reduce param_ids replacements expr)
+  | Fn (params, expr) -> Fn (params, beta_reduce param_ids replacements expr)
+  | Invoke (to_apply, args) ->
+      Invoke (to_apply, List.map (beta_reduce param_ids replacements) args)
   | Binop (op, lhs, rhs) ->
-      Binop (op, beta_reduce param_ids args lhs, beta_reduce param_ids args rhs)
-  | List exprs -> List (List.map (beta_reduce param_ids args) exprs)
+      Binop
+        ( op,
+          beta_reduce param_ids replacements lhs,
+          beta_reduce param_ids replacements rhs )
+  | List exprs -> List (List.map (beta_reduce param_ids replacements) exprs)
   | True | False | Integer _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (beta_reduce param_ids args) exprs,
-          beta_reduce param_ids args default )
+        ( List.map (beta_reduce param_ids replacements) exprs,
+          beta_reduce param_ids replacements default )
   | LetBinding (bindings, expr) ->
       let beta_reduced_bindings =
         List.map
-          (fun (id, expr) -> (id, beta_reduce param_ids args expr))
+          (fun (id, expr) -> (id, beta_reduce param_ids replacements expr))
           bindings
       in
-      LetBinding (beta_reduced_bindings, beta_reduce param_ids args expr)
+      LetBinding (beta_reduced_bindings, beta_reduce param_ids replacements expr)
 
 and alpha_convert scope replacements expr =
   (* [bindings: list of seen bindings.
@@ -78,8 +78,8 @@ and alpha_convert scope replacements expr =
       let new_params = List.map (fun (_, v) -> v) new_replace @ bind in
       let new_scope = new_params @ bind @ scope in
       Fn (new_params, alpha_convert new_scope new_replace expr)
-  | FnInvoke (to_apply, args) ->
-      FnInvoke
+  | Invoke (to_apply, args) ->
+      Invoke
         ( alpha_convert scope replacements to_apply,
           List.map (alpha_convert scope replacements) args )
   | Binop (op, lhs, rhs) ->
@@ -110,7 +110,11 @@ and alpha_convert scope replacements expr =
       LetBinding (new_bnds, alpha_convert new_scope new_replace expr)
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
-let check_arity params args = List.length args = List.length params
+let check_arity expected args =
+  if not (List.length args = expected) then
+    failwith
+      (sprintf "Wrong arity: expected %d args, received %d." expected
+         (List.length args))
 
 let rec step expr ctx =
   match expr with
@@ -119,22 +123,21 @@ let rec step expr ctx =
       let stepped, new_ctx = step expr ctx in
       (Def (id, stepped), new_ctx)
   | Fn (params, expr) -> (alpha_convert params [] (Fn (params, expr)), ctx)
-  | FnInvoke (to_apply, args) when is_value to_apply && is_list_of_values args
+  | Invoke (to_apply, args) when is_value to_apply && is_list_of_values args
     -> (
       match to_apply with
       | Fn (params, expr) ->
-          if check_arity params args then
-            let stepped, _ = step expr (List.combine params args @ ctx) in
-            (beta_reduce params args stepped, ctx)
-          else
-            failwith
-              (sprintf "Wrong arity: function expected %d args, received %d."
-                 (List.length params) (List.length args))
+          check_arity (List.length params) args;
+          let stepped, _ = step expr (List.combine params args @ ctx) in
+          (beta_reduce params args stepped, ctx)
+      | List exprs ->
+          check_arity 1 args;
+          step_list exprs args ctx
       | _ ->
           failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
-  | FnInvoke (to_apply, args) when is_value to_apply ->
-      (FnInvoke (to_apply, List.map (fun m -> fst (step m ctx)) args), ctx)
-  | FnInvoke (to_apply, args) -> (FnInvoke (fst (step to_apply ctx), args), ctx)
+  | Invoke (to_apply, args) when is_value to_apply ->
+      (Invoke (to_apply, List.map (fun m -> fst (step m ctx)) args), ctx)
+  | Invoke (to_apply, args) -> (Invoke (fst (step to_apply ctx), args), ctx)
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
   | Binop (op, lhs, rhs) when is_value lhs ->
       (Binop (op, lhs, fst (step rhs ctx)), ctx)
@@ -188,6 +191,16 @@ and step_binop expr ctx =
       failwith
         (sprintf "Could not execute binary operation on %s."
            (string_of_expr expr))
+
+and step_list exprs args ctx =
+  match args with
+  | Integer nth :: [] ->
+      let res =
+        try List.nth exprs nth
+        with _ -> failwith (sprintf "Index %d is out of bounds" nth)
+      in
+      (res, ctx)
+  | _ -> failwith "Key must be integer"
 
 and lazy_step_cond (exprs, default) ctx =
   match exprs with
