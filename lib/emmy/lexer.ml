@@ -16,19 +16,28 @@ let reset_pos () =
 let reified_position () = Position (position.row, position.col)
 
 let lex_number chars =
-  let rec aux acc rem =
+  let rec aux acc rem ~lexing_decimal_part =
     match rem with
-    | h :: t when Char.is_digit h -> aux ((acc * 10) + Char.as_int h) t
-    | _ -> (Token (INTEGER_TOKEN acc, reified_position ()), rem)
+    | h :: t when Char.is_digit h ->
+        aux ((acc * 10) + Char.as_int h) t ~lexing_decimal_part
+    | h :: t when h = '.' ->
+        if not lexing_decimal_part then
+          let integer_part = acc in
+          let decimal_part, rem = aux 0 t ~lexing_decimal_part:true in
+          let float = string_of_int integer_part ^ "." ^ decimal_part in
+          (float, rem)
+        else failwith "Error while parsing float"
+    | _ -> (string_of_int acc, rem)
   in
-  aux 0 chars
+  let number, rem = aux 0 chars ~lexing_decimal_part:false in
+  (Token (NUMBER_TOKEN (float_of_string number), reified_position ()), rem)
 
 let lex_string chars =
   let rec aux acc rem =
     match rem with
     | '"' :: t -> (Token (STRING_TOKEN acc, reified_position ()), t)
     | h :: t -> aux (acc ^ String.make 1 h) t
-    | [] -> raise (Failure "unmatched string")
+    | [] -> failwith "unmatched string"
   in
   aux "" chars
 
@@ -108,17 +117,26 @@ and peek_string chars =
     match rem with
     | '"' :: _ -> STRING_TOKEN acc
     | h :: t -> aux (acc ^ String.make 1 h) t
-    | [] -> raise (Failure "unmatched string")
+    | [] -> failwith "unmatched string"
   in
   aux "" chars
 
 and peek_number chars =
-  let rec aux acc rem =
+  let rec aux acc rem ~lexing_decimal_part =
     match rem with
-    | h :: t when Char.is_digit h -> aux ((acc * 10) + Char.as_int h) t
-    | _ -> INTEGER_TOKEN acc
+    | h :: t when Char.is_digit h ->
+        aux ((acc * 10) + Char.as_int h) t ~lexing_decimal_part
+    | h :: t when h = '.' ->
+        if not lexing_decimal_part then
+          let integer_part = acc in
+          let decimal_part = aux 0 t ~lexing_decimal_part:true in
+          let float = string_of_int integer_part ^ "." ^ decimal_part in
+          float
+        else failwith "Error while lexig float"
+    | _ -> string_of_int acc
   in
-  aux 0 chars
+  let number = aux 0 chars ~lexing_decimal_part:false in
+  NUMBER_TOKEN (float_of_string number)
 
 and peek_identifier_or_keyword chars =
   (* allow every symbol except white-space in identifier. *)

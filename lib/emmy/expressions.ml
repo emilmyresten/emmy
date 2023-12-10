@@ -9,7 +9,7 @@ type expression =
   | Cond of expression list * expression
   | Binop of binop * expression * expression
   | List of expression list
-  | Integer of int
+  | Number of float
   | String of string
   | Identifier of string
   | True
@@ -18,7 +18,7 @@ type expression =
 
 let rec is_value expr =
   match expr with
-  | Integer _ | String _ | True | False | Unit | Fn (_, _) -> true
+  | Number _ | String _ | True | False | Unit | Fn (_, _) -> true
   | List exprs when is_list_of_values exprs -> true
   | _ -> false
 

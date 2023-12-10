@@ -41,7 +41,7 @@ let rec beta_reduce param_ids replacements expr =
           beta_reduce param_ids replacements lhs,
           beta_reduce param_ids replacements rhs )
   | List exprs -> List (List.map (beta_reduce param_ids replacements) exprs)
-  | True | False | Integer _ | String _ | Unit -> expr
+  | True | False | Number _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
         ( List.map (beta_reduce param_ids replacements) exprs,
@@ -88,7 +88,7 @@ and alpha_convert scope replacements expr =
           alpha_convert scope replacements lhs,
           alpha_convert scope replacements rhs )
   | List exprs -> List (List.map (alpha_convert scope replacements) exprs)
-  | True | False | Integer _ | String _ | Unit -> expr
+  | True | False | Number _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
         ( List.map (alpha_convert scope replacements) exprs,
@@ -144,7 +144,7 @@ let rec step expr ctx =
   | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
   | List exprs when is_list_of_values exprs -> (List exprs, ctx)
   | List exprs -> (List (List.map (fun expr -> fst (step expr ctx)) exprs), ctx)
-  | True | False | Integer _ | String _ -> (expr, ctx)
+  | True | False | Number _ | String _ -> (expr, ctx)
   | Identifier id ->
       let value = get_from_ctx id ctx in
       (value, ctx)
@@ -169,18 +169,20 @@ let rec step expr ctx =
 and step_binop expr ctx =
   match expr with
   (* Numbers *)
-  | Binop (Plus, Integer lhs, Integer rhs) -> (Integer (lhs + rhs), ctx)
-  | Binop (Minus, Integer lhs, Integer rhs) -> (Integer (lhs - rhs), ctx)
-  | Binop (Times, Integer lhs, Integer rhs) -> (Integer (lhs * rhs), ctx)
-  | Binop (Division, Integer lhs, Integer rhs) -> (Integer (lhs / rhs), ctx)
-  | Binop (Mod, Integer lhs, Integer rhs) -> (Integer (lhs mod rhs), ctx)
+  | Binop (Plus, Number lhs, Number rhs) -> (Number (lhs +. rhs), ctx)
+  | Binop (Minus, Number lhs, Number rhs) -> (Number (lhs -. rhs), ctx)
+  | Binop (Times, Number lhs, Number rhs) -> (Number (lhs *. rhs), ctx)
+  | Binop (Division, Number lhs, Number rhs) -> (Number (lhs /. rhs), ctx)
+  | Binop (Mod, Number lhs, Number rhs)
+    when Float.is_integer lhs && Float.is_integer rhs ->
+      (Number (float_of_int (int_of_float lhs mod int_of_float rhs)), ctx)
   (* Strings *)
   | Binop (Plus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   (* Boolean logic *)
-  | Binop (Equals, Integer lhs, Integer rhs) ->
+  | Binop (Equals, Number lhs, Number rhs) ->
       if lhs = rhs then (True, ctx) else (False, ctx)
-  | Binop (LessThan, Integer lhs, Integer rhs) ->
+  | Binop (LessThan, Number lhs, Number rhs) ->
       if lhs < rhs then (True, ctx) else (False, ctx)
   | Binop (Equals, String lhs, String rhs) ->
       if lhs = rhs then (True, ctx) else (False, ctx)
@@ -194,10 +196,11 @@ and step_binop expr ctx =
 
 and step_list exprs args ctx =
   match args with
-  | Integer nth :: [] ->
+  | Number nth :: [] when Float.is_integer nth ->
       let res =
-        try List.nth exprs nth
-        with _ -> failwith (sprintf "Index %d is out of bounds" nth)
+        try List.nth exprs (int_of_float nth)
+        with _ ->
+          failwith (sprintf "Index %d is out of bounds" (int_of_float nth))
       in
       (res, ctx)
   | _ -> failwith "Key must be integer"

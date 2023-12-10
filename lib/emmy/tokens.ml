@@ -24,7 +24,7 @@ type token_type =
   | LESS_THAN
   | COND
   | LET
-  | INTEGER_TOKEN of int
+  | NUMBER_TOKEN of float
   | STRING_TOKEN of string
   | IDENTIFIER_TOKEN of string
   | UNKNOWN of char
@@ -63,7 +63,9 @@ let string_of_token_type = function
   | FALSE -> "false"
   | COND -> "keyword cond"
   | LET -> "keyword let"
-  | INTEGER_TOKEN v -> string_of_int v
+  | NUMBER_TOKEN v ->
+      if Float.is_integer v then string_of_int (int_of_float v)
+      else string_of_float v
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
   | UNKNOWN c -> sprintf "UNKNOWN %c" c

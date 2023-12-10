@@ -3,10 +3,12 @@ open Expressions
 
 let rec string_of_val v =
   match v with
-  | Integer v -> sprintf "%d" v
+  | Number v ->
+      if Float.is_integer v then string_of_int (int_of_float v)
+      else string_of_float v
   | String str -> sprintf "\"%s\"" str
-  | True -> sprintf "true"
-  | False -> sprintf "false"
+  | True -> "true"
+  | False -> "false"
   | Unit -> "Unit"
   | Fn (params, expr) ->
       sprintf "(function %s -> %s)" (string_of_params params)
@@ -55,7 +57,7 @@ and string_of_expr expr =
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
   | Fn (params, expr) -> string_of_val (Fn (params, expr))
   | List exprs -> sprintf "[%s]" (string_of_expr_list exprs)
-  | Integer _ | String _ | True | False | Unit -> string_of_val expr
+  | Number _ | String _ | True | False | Unit -> string_of_val expr
 
 and string_of_context ctx =
   List.map (fun (k, v) -> sprintf "%s = %s\n" k (string_of_val v)) ctx

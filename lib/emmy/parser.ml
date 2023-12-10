@@ -62,7 +62,7 @@ let rec do_parse chars =
   | Token (LBRACKET, _) -> parse_list_ds chars
   | Token (TRUE, _) -> (True, chars)
   | Token (FALSE, _) -> (False, chars)
-  | Token (INTEGER_TOKEN v, _) -> (Integer v, chars)
+  | Token (NUMBER_TOKEN v, _) -> (Number v, chars)
   | Token (STRING_TOKEN str, _) -> (String str, chars)
   | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, chars)
   | Token (UNKNOWN c, Position (row, col)) ->
