@@ -89,33 +89,30 @@ let rec peek chars =
   match chars with
   | h :: t when Char.is_whitespace h -> peek t
   | '\n' :: t -> peek t
-  | '(' :: _ -> LPAREN
-  | ')' :: _ -> RPAREN
-  | '[' :: _ -> LBRACKET
-  | ']' :: _ -> RBRACKET
-  | '-' :: '>' :: _ -> ARROW
-  | '+' :: _ -> PLUS
-  | '-' :: _ -> MINUS
-  | '*' :: _ -> TIMES
-  | '/' :: _ -> DIVISION
-  | '%' :: _ -> MOD
-  | '=' :: ' ' :: _ -> EQUALS
-  | '<' :: ' ' :: _ -> LESS_THAN
+  | '(' :: _ -> Some LPAREN
+  | ')' :: _ -> Some RPAREN
+  | '[' :: _ -> Some LBRACKET
+  | ']' :: _ -> Some RBRACKET
+  | '-' :: '>' :: _ -> Some ARROW
+  | '+' :: _ -> Some PLUS
+  | '-' :: _ -> Some MINUS
+  | '*' :: _ -> Some TIMES
+  | '/' :: _ -> Some DIVISION
+  | '%' :: _ -> Some MOD
+  | '=' :: ' ' :: _ -> Some EQUALS
+  | '<' :: ' ' :: _ -> Some LESS_THAN
   | '"' :: t -> peek_string t
   | h :: t when not (Char.is_digit h || Char.is_whitespace h || Char.is_symbol h)
     ->
       peek_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> peek_number (h :: t)
-  | h :: _ -> UNKNOWN h
-  | [] ->
-      let ret = EOF in
-      reset_pos ();
-      ret
+  | h :: _ -> Some (UNKNOWN h)
+  | [] -> None
 
 and peek_string chars =
   let rec aux acc rem =
     match rem with
-    | '"' :: _ -> STRING_TOKEN acc
+    | '"' :: _ -> Some (STRING_TOKEN acc)
     | h :: t -> aux (acc ^ String.make 1 h) t
     | [] -> failwith "unmatched string"
   in
@@ -136,7 +133,7 @@ and peek_number chars =
     | _ -> string_of_int acc
   in
   let number = aux 0 chars ~lexing_decimal_part:false in
-  NUMBER_TOKEN (float_of_string number)
+  Some (NUMBER_TOKEN (float_of_string number))
 
 and peek_identifier_or_keyword chars =
   (* allow every symbol except white-space in identifier. *)
@@ -148,5 +145,5 @@ and peek_identifier_or_keyword chars =
   in
   let parsed = aux "" chars in
   match List.assoc_opt parsed keywords with
-  | Some token_type -> token_type
-  | None -> IDENTIFIER_TOKEN parsed
+  | Some token_type -> Some token_type
+  | None -> Some (IDENTIFIER_TOKEN parsed)

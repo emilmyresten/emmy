@@ -223,18 +223,17 @@ let rec eval e ctx =
     eval stepped ctx
 
 let eval_program p initial_ctx =
-  let cmds = String.split_on_char ';' p in
-  let rec eval_all_aux ctx cmds =
-    match cmds with
-    | [] -> failwith "empty program"
-    | final_cmd :: [] ->
-        let char_seq = String.to_list final_cmd in
-        let eval, ctx = eval (Parser.parse char_seq) ctx in
-        (eval, ctx)
-    | cmd :: t ->
-        let char_seq = String.to_list cmd in
-        let _, ctx = eval (Parser.parse char_seq) ctx in
-        (* we do not care about intermediate evals other than storing in ctx *)
-        eval_all_aux ctx t
-  in
-  eval_all_aux initial_ctx cmds
+  let char_seq = String.to_list p in
+  let program = Parser.parse char_seq in
+  match program with
+  | Program exprs ->
+      let last = List.hd (List.rev exprs)
+      and other = List.rev (List.tl (List.rev exprs)) in
+      let new_ctx =
+        List.fold_left
+          (fun accumulating_ctx expr ->
+            let _, extended_ctx = eval expr accumulating_ctx in
+            extended_ctx @ accumulating_ctx)
+          initial_ctx other
+      in
+      eval last new_ctx

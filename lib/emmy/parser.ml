@@ -22,37 +22,37 @@ let rec do_parse chars =
   | Token (LPAREN, _) ->
       let expr, chars =
         match peek chars with
-        | DEF ->
+        | Some DEF ->
             let chars = eat DEF chars in
             parse_def_expr chars
-        | PLUS ->
+        | Some PLUS ->
             let chars = eat PLUS chars in
             parse_binop_expr Plus chars
-        | MINUS ->
+        | Some MINUS ->
             let chars = eat MINUS chars in
             parse_binop_expr Minus chars
-        | TIMES ->
+        | Some TIMES ->
             let chars = eat TIMES chars in
             parse_binop_expr Times chars
-        | DIVISION ->
+        | Some DIVISION ->
             let chars = eat DIVISION chars in
             parse_binop_expr Division chars
-        | MOD ->
+        | Some MOD ->
             let chars = eat MOD chars in
             parse_binop_expr Mod chars
-        | EQUALS ->
+        | Some EQUALS ->
             let chars = eat EQUALS chars in
             parse_binop_expr Equals chars
-        | LESS_THAN ->
+        | Some LESS_THAN ->
             let chars = eat LESS_THAN chars in
             parse_binop_expr LessThan chars
-        | COND ->
+        | Some COND ->
             let chars = eat COND chars in
             parse_cond_expr chars
-        | LET ->
+        | Some LET ->
             let chars = eat LET chars in
             parse_let_expr chars
-        | FN ->
+        | Some FN ->
             let chars = eat FN chars in
             parse_fn_expr chars
         | _ -> parse_invoke_expr chars
@@ -107,7 +107,7 @@ and parse_let_expr chars =
                (Pprint.string_of_expr id))
     in
     let expr, chars = do_parse chars in
-    if peek chars = RBRACKET then
+    if peek chars = Some RBRACKET then
       let chars = eat RBRACKET chars in
       ((id_str, expr) :: bindings, chars)
     else parse_let_aux ((id_str, expr) :: bindings) chars
@@ -119,13 +119,13 @@ and parse_let_expr chars =
 and parse_cond_expr chars =
   let rec parse_cond_aux exprs chars =
     let case, chars = do_parse chars in
-    if peek chars = RPAREN then
+    if peek chars = Some RPAREN then
       if List.length exprs mod 2 = 1 then
         failwith "Must provide default case for cond-expression"
       else (Cond (List.rev exprs, case), chars)
     else
       let expr, chars = do_parse chars in
-      if peek chars = RPAREN then
+      if peek chars = Some RPAREN then
         failwith "Must provide default case for cond-expression"
       else parse_cond_aux (expr :: case :: exprs) chars
   in
@@ -134,7 +134,7 @@ and parse_cond_expr chars =
 and parse_fn_expr chars =
   let rec get_params_aux params_acc chars =
     match peek chars with
-    | IDENTIFIER_TOKEN _ -> (
+    | Some (IDENTIFIER_TOKEN _) -> (
         let param, chars = next_token chars in
         match param with
         | Token (IDENTIFIER_TOKEN id, _) ->
@@ -157,7 +157,7 @@ and parse_invoke_expr chars =
 
 and aux_parse_arg_list args chars =
   match peek chars with
-  | RPAREN ->
+  | Some RPAREN ->
       (List.rev args, chars)
       (* we want to keep parsing the arguments until we hit the closing bracket of the function invocation. *)
   | _ ->
@@ -166,7 +166,7 @@ and aux_parse_arg_list args chars =
 
 and aux_parse_list_ds exprs chars =
   match peek chars with
-  | RBRACKET ->
+  | Some RBRACKET ->
       let chars = eat RBRACKET chars in
       (List.rev exprs, chars)
   | _ ->
@@ -174,6 +174,13 @@ and aux_parse_list_ds exprs chars =
       aux_parse_list_ds (expr :: exprs) chars
 
 let parse chars =
-  let ast, rem = do_parse chars in
-  let _ = eat EOF rem in
-  ast
+  let rec parse_aux exprs chars =
+    match peek chars with
+    | Some _tok ->
+        let expr, rem = do_parse chars in
+        parse_aux (expr :: exprs) rem
+    | None ->
+        let _ = eat EOF chars in
+        Program (List.rev exprs)
+  in
+  parse_aux [] chars

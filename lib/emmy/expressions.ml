@@ -1,6 +1,7 @@
-type binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
+type program = Program of expression list
+and binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
 
-type expression =
+and expression =
   | Def of string * expression
   | Fn of string list * expression
   (* the expression list is the list of arguments. The evaluation strategy is eager. Call-by-value *)
@@ -16,6 +17,7 @@ type expression =
   | False
   | Unit
 
+(* Also called a 'normal form' *)
 let rec is_value expr =
   match expr with
   | Number _ | String _ | True | False | Unit | Fn (_, _) -> true
