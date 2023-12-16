@@ -10,7 +10,12 @@ Tree-walking emmyreter implementation of a LISP-type language implemented in OCa
 ### Build & run:
 
 `opam install --deps-only --with-test .`
+
 `dune exec emmy`
+
+Run programs using
+
+`dune exec emmy ./programs/main.emmy`
 
 #### Tests:
 Testing is done with [alcotest](https://github.com/mirage/alcotest).
