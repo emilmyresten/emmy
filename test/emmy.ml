@@ -35,7 +35,7 @@ let suite =
      and expected_result = "1" in
      (hofs, `Quick, simple_emmy_test hofs expected_result));
     (let return_fn = "(def id (fn -> (fn y -> y))) \n      (id)"
-     and expected_result = "(function y#398 -> Identifier y#398)" in
+     and expected_result = "(function y -> Identifier y)" in
      (return_fn, `Quick, simple_emmy_test return_fn expected_result));
     (let scoping =
        "(def alpha_converted (fn x -> (fn x -> (fn x -> x))))\n\

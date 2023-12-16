@@ -81,6 +81,7 @@ and alpha_convert scope replacements expr =
         List.fold_left
           (fun a p -> [ (p, get_unique_name p scope) ] @ a)
           [] conflicts
+        |> List.rev
       in
       let new_params = List.map (fun (_, v) -> v) new_replace @ bind in
       let new_scope = new_params @ bind @ scope in
@@ -131,14 +132,15 @@ let rec step expr ctx =
   | Def (id, expr) ->
       let stepped, new_ctx = step expr ctx in
       (Def (id, stepped), new_ctx)
-  | Fn (params, expr) -> (alpha_convert params [] (Fn (params, expr)), ctx)
+  | Fn (params, expr) -> (Fn (params, expr), ctx)
   | Invoke (to_apply, args) when is_value to_apply && is_list_of_values args
     -> (
       match to_apply with
       | Fn (params, expr) ->
           check_arity (List.length params) args;
-          let stepped, _ = step expr (List.combine params args @ ctx) in
-          (beta_reduce params args stepped, ctx)
+          let alpha_converted = alpha_convert params [] expr in
+          let beta_reduced = beta_reduce params args alpha_converted in
+          step beta_reduced ctx
       | List exprs ->
           check_arity 1 args;
           step_list exprs args ctx
