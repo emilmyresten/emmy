@@ -7,7 +7,11 @@ let rec loop ctx cmd_history =
   let history = read :: cmd_history in
   try
     let eval, ctx = Interpreter.eval_program read ctx in
-    let _print = iprint_format "%s\n" (Pprint.string_of_expr eval) in
+    let () =
+      match eval with
+      | Expressions.Unit -> ()
+      | _ -> iprint_format "%s\n" (Pprint.string_of_expr eval)
+    in
     (* Term.iprint "Context:\n";
        Term.iprint (Pprint.string_of_context ctx); *)
     loop ctx history;
