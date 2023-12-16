@@ -175,9 +175,10 @@ let rec step expr ctx =
         List.map (fun (id, expr) -> (id, fst (step expr ctx))) bindings
       in
       (LetBinding (stepped_bindings, expr), ctx)
+  | Do (unit_expr, actual_expr) when is_value unit_expr -> step actual_expr ctx
   | Do (unit_expr, actual_expr) ->
-      let _ = step unit_expr ctx in
-      step actual_expr ctx
+      let stepped_unit, _ = step unit_expr ctx in
+      (Do (stepped_unit, actual_expr), ctx)
 
 and step_binop expr ctx =
   match expr with
