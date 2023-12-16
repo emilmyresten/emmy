@@ -2,6 +2,7 @@ open Printf
 open Pprint
 open Extensions
 open Expressions
+open Builtins
 
 let () = Random.init 0
 
@@ -9,7 +10,8 @@ let get_from_ctx id ctx =
   try List.assoc id ctx
   with _ ->
     failwith
-      (sprintf "Unbound identifier %s in context %s" id (string_of_context ctx))
+      (sprintf "Unbound identifier %s in context [%s]" id
+         (string_of_context ctx))
 
 let rec get_unique_name p bindings =
   let suffix = Random.int 512 in
@@ -135,14 +137,11 @@ let rec step expr ctx =
           step_list exprs args ctx
       | _ ->
           failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
-  | Invoke (to_apply, args) when not (is_list_of_values args) ->
+  | Invoke (to_apply, args) when is_list_of_values args -> (
+      try (apply_builtin expr, ctx)
+      with _ -> (Invoke (fst (step to_apply ctx), args), ctx))
+  | Invoke (to_apply, args) ->
       (Invoke (to_apply, List.map (fun m -> fst (step m ctx)) args), ctx)
-  | Invoke (to_apply, args) -> (
-      match to_apply with
-      | Identifier "println" ->
-          Printf.printf "%s\n" (string_of_expr_list args);
-          (Unit, ctx)
-      | _ -> (Invoke (fst (step to_apply ctx), args), ctx))
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
   | Binop (op, lhs, rhs) when is_value lhs ->
       (Binop (op, lhs, fst (step rhs ctx)), ctx)
