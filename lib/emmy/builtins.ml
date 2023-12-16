@@ -1,5 +1,6 @@
 open Expressions
 open Utils
+open Printf
 open Pprint
 
 let readfile_impl filename =
@@ -22,5 +23,5 @@ let apply_builtin to_apply args =
           match List.hd args with
           | String filename -> readfile_impl filename
           | _ -> failwith "Filename passed to readfile must be string.")
-      | _ -> failwith "No builtin function found.")
+      | _ -> failwith (sprintf "No builtin function found for '%s'." name))
   | _ -> failwith "Function application did not refer to Identifier."

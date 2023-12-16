@@ -53,7 +53,12 @@ and string_of_expr expr =
         (string_of_expr_list exprs)
         (string_of_expr default)
   | LetBinding (bindings, expr) ->
-      sprintf "let (%s) %s" (string_of_bindings bindings) (string_of_expr expr)
+      sprintf "(let [%s] %s)"
+        (string_of_bindings bindings)
+        (string_of_expr expr)
+  | Do (unit_expr, actual_expr) ->
+      sprintf "(do (%s) %s)" (string_of_expr unit_expr)
+        (string_of_expr actual_expr)
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
   | Fn (params, expr) -> string_of_val (Fn (params, expr))
   | List exprs -> sprintf "[%s]" (string_of_expr_list exprs)

@@ -56,6 +56,10 @@ let rec beta_reduce param_ids replacements expr =
           bindings
       in
       LetBinding (beta_reduced_bindings, beta_reduce param_ids replacements expr)
+  | Do (unit_expr, actual_expr) ->
+      Do
+        ( beta_reduce param_ids replacements unit_expr,
+          beta_reduce param_ids replacements actual_expr )
 
 and alpha_convert scope replacements expr =
   (* [bindings: list of seen bindings.
@@ -111,11 +115,18 @@ and alpha_convert scope replacements expr =
       in
       let new_scope = new_let_bindings @ bind @ scope in
       LetBinding (new_bnds, alpha_convert new_scope new_replace expr)
+  | Do (unit_expr, actual_expr) ->
+      Do
+        ( alpha_convert scope replacements unit_expr,
+          alpha_convert scope replacements actual_expr )
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
 
 let rec step expr ctx =
   match expr with
+  | Identifier id ->
+      let value = get_from_ctx id ctx in
+      (value, ctx)
   | Def (id, expr) when is_value expr -> (Unit, (id, expr) :: ctx)
   | Def (id, expr) ->
       let stepped, new_ctx = step expr ctx in
@@ -145,9 +156,6 @@ let rec step expr ctx =
   | List exprs when is_list_of_values exprs -> (List exprs, ctx)
   | List exprs -> (List (List.map (fun expr -> fst (step expr ctx)) exprs), ctx)
   | True | False | Number _ | String _ -> (expr, ctx)
-  | Identifier id ->
-      let value = get_from_ctx id ctx in
-      (value, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
   | Cond (exprs, default) -> lazy_step_cond (exprs, default) ctx
   | LetBinding (bindings, expr)
@@ -165,6 +173,9 @@ let rec step expr ctx =
         List.map (fun (id, expr) -> (id, fst (step expr ctx))) bindings
       in
       (LetBinding (stepped_bindings, expr), ctx)
+  | Do (unit_expr, actual_expr) ->
+      let _ = step unit_expr ctx in
+      step actual_expr ctx
 
 and step_binop expr ctx =
   match expr with

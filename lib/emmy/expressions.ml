@@ -8,6 +8,7 @@ and expression =
   | Invoke of expression * expression list
   | LetBinding of (string * expression) list * expression
   | Cond of expression list * expression
+  | Do of expression * expression
   | Binop of binop * expression * expression
   | List of expression list
   | Number of float

@@ -251,6 +251,9 @@ let suite =
      (list_index_test, `Quick, simple_emmy_test list_index_test expected_result));
     (let list_index_test = "(def x [1 2 3]) (x 2)" and expected_result = "3" in
      (list_index_test, `Quick, simple_emmy_test list_index_test expected_result));
+    (let do_test = "(def x (do (println \"hej\") 2)) x"
+     and expected_result = "2" in
+     (do_test, `Quick, simple_emmy_test do_test expected_result));
   ]
 
 let emmy_tests () = Alcotest.run "Emmy" [ ("E2E", suite) ]

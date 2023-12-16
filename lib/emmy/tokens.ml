@@ -24,6 +24,7 @@ type token_type =
   | LESS_THAN
   | COND
   | LET
+  | DO
   | NUMBER_TOKEN of float
   | STRING_TOKEN of string
   | IDENTIFIER_TOKEN of string
@@ -40,6 +41,7 @@ let keywords =
     ("false", FALSE);
     ("cond", COND);
     ("let", LET);
+    ("do", DO);
   ]
 
 let get_position = function Token (_, pos) -> pos
@@ -63,6 +65,7 @@ let string_of_token_type = function
   | FALSE -> "false"
   | COND -> "keyword cond"
   | LET -> "keyword let"
+  | DO -> "keyword do"
   | NUMBER_TOKEN v ->
       if Float.is_integer v then string_of_int (int_of_float v)
       else string_of_float v

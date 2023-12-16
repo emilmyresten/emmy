@@ -52,6 +52,9 @@ let rec do_parse chars =
         | Some LET ->
             let chars = eat LET chars in
             parse_let_expr chars
+        | Some DO ->
+            let chars = eat DO chars in
+            parse_do_expr chars
         | Some FN ->
             let chars = eat FN chars in
             parse_fn_expr chars
@@ -115,6 +118,11 @@ and parse_let_expr chars =
   let bindings, chars = parse_let_aux [] chars in
   let expr, chars = do_parse chars in
   (LetBinding (bindings, expr), chars)
+
+and parse_do_expr chars =
+  let unit_expr, chars = do_parse chars in
+  let actual_expr, chars = do_parse chars in
+  (Do (unit_expr, actual_expr), chars)
 
 and parse_cond_expr chars =
   let rec parse_cond_aux exprs chars =
