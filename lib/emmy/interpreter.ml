@@ -3,6 +3,7 @@ open Pprint
 open Extensions
 open Expressions
 open Builtins
+open Utils
 
 let () = Random.init 0
 
@@ -112,11 +113,6 @@ and alpha_convert scope replacements expr =
       LetBinding (new_bnds, alpha_convert new_scope new_replace expr)
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
-let check_arity expected args =
-  if not (List.length args = expected) then
-    failwith
-      (sprintf "Wrong arity: expected %d args, received %d." expected
-         (List.length args))
 
 let rec step expr ctx =
   match expr with
@@ -138,7 +134,7 @@ let rec step expr ctx =
       | _ ->
           failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
   | Invoke (to_apply, args) when is_list_of_values args -> (
-      try (apply_builtin expr, ctx)
+      try (apply_builtin to_apply args, ctx)
       with _ -> (Invoke (fst (step to_apply ctx), args), ctx))
   | Invoke (to_apply, args) ->
       (Invoke (to_apply, List.map (fun m -> fst (step m ctx)) args), ctx)
