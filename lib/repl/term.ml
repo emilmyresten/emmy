@@ -1,5 +1,6 @@
+open Base
+open Stdio
 open Unix
-open Printf
 open Extensions
 
 (* escape code in hex: \x1b, in decimal: \x1b*)
@@ -36,17 +37,19 @@ let iprint_format msg str =
 
 let iprint str =
   clear_line ();
-  printf "%s" (String.concat "" str)
+  printf "%s" (String.concat ~sep:"" str)
 
 let read_bytes () =
   let char_buffer = Bytes.create 3 in
-  let number_read = input Stdlib.stdin char_buffer 0 3 in
-  let char_list = char_buffer |> Bytes.to_seq |> List.of_seq in
+  let number_read =
+    In_channel.input Stdlib.stdin ~buf:char_buffer ~pos:0 ~len:3
+  in
+  let char_list = char_buffer |> Bytes.to_string |> String.to_list in
   (char_list, number_read)
 
 let rec get_cursor_position () =
   iprint_escape_code "\x1b[6n";
-  flush Stdlib.stdout;
+  Out_channel.flush Stdlib.stdout;
   let rec cursor_position_aux acc =
     let char_list, num_bytes = read_bytes () in
     match char_list with
@@ -56,7 +59,9 @@ let rec get_cursor_position () =
         else
           let sequence = acc ^ String.of_char_list c in
           try
-            let row, col = Scanf.sscanf sequence "%d;%dR" (fun x y -> (x, y)) in
+            let row, col =
+              Stdlib.(Scanf.sscanf sequence "%d;%dR" (fun x y -> (x, y)))
+            in
             (row, col)
           with _ -> get_cursor_position ())
   in
@@ -69,40 +74,40 @@ let set_raw_mode () =
   tcsetattr stdin TCSAFLUSH new_termios
 
 let split_by_newline line =
-  let lines = String.split_on_char '\n' line in
+  let lines = String.split line ~on:'\n' in
   List.mapi
-    (fun i cmd -> if i <> List.length lines - 1 then cmd ^ "\n" else cmd)
+    ~f:(fun i cmd -> if i <> List.length lines - 1 then cmd ^ "\n" else cmd)
     lines
 
 let handle_insert_at row col char lines =
-  let old_line = List.nth lines row |> String.to_list in
+  let old_line = List.nth_exn lines row |> String.to_list in
   let new_line =
     (if List.length old_line = col - 1 then old_line << char
      else
        snd
-         (List.fold_left
-            (fun acc m ->
+         (List.fold
+            ~f:(fun acc m ->
               let i = fst acc and line = snd acc in
               if i = col - 1 then (i + 1, line << char << m)
               else (i + 1, line << m))
-            (0, []) old_line))
+            ~init:(0, []) old_line))
     |> String.of_char_list
   in
-  List.mapi (fun i x -> if i = row then new_line else x) lines
+  List.mapi ~f:(fun i x -> if i = row then new_line else x) lines
 
 let handle_delete_at row col lines =
   let new_line =
-    List.nth lines row |> String.to_list
-    |> List.filteri (fun curr_col _ ->
+    List.nth_exn lines row |> String.to_list
+    |> List.filteri ~f:(fun curr_col _ ->
            if curr_col = col - 1 then false else true)
     |> String.of_char_list
   in
-  List.mapi (fun i line -> if i = row then new_line else line) lines
+  List.mapi ~f:(fun i line -> if i = row then new_line else line) lines
 
 let get_from_history cmd_history history_index =
   if history_index = -1 then [ "" ]
   else
-    match List.nth_opt cmd_history history_index with
+    match List.nth cmd_history history_index with
     | Some line -> split_by_newline line
     | None -> [ "" ]
 
@@ -111,13 +116,13 @@ let get_next_col t erow col lines =
   | `FORWARD ->
       if
         erow = List.length lines - 1
-        && col = String.length (List.nth lines erow)
+        && col = String.length (List.nth_exn lines erow)
       then col
-      else if col = String.length (List.nth lines erow) then 1
+      else if col = String.length (List.nth_exn lines erow) then 1
       else col + 1
   | `BACK ->
       if erow = 0 && col <= 1 then col
-      else if col = 1 then String.length (List.nth lines (erow - 1))
+      else if col = 1 then String.length (List.nth_exn lines (erow - 1))
       else col - 1
 
 let get_next_row t erow tty_row col lines =
@@ -162,7 +167,7 @@ let next_key () =
   | _ -> UNMAPPED
 
 let rec next_char lines history_index cmd_history editing_row =
-  flush Stdlib.stdout;
+  Out_channel.flush Stdlib.stdout;
   let row, col = get_cursor_position () in
   let key = next_key () in
   match key with
@@ -180,7 +185,7 @@ let rec next_char lines history_index cmd_history editing_row =
       iprint next_lines;
       next_char next_lines next_history_index cmd_history editing_row
   | ARROW_RIGHT ->
-      if col - 1 < String.length (List.nth lines editing_row) then
+      if col - 1 < String.length (List.nth_exn lines editing_row) then
         move_cursor_right ();
       next_char lines history_index cmd_history editing_row
   | ARROW_LEFT ->
@@ -205,7 +210,9 @@ let rec next_char lines history_index cmd_history editing_row =
       clear_from_cursor ();
       let trimmed_new_lines =
         if col_to_delete >= col && List.length new_lines > 1 then
-          List.rev (List.tl (List.rev new_lines))
+          match List.drop_last new_lines with
+          | Some other -> other
+          | None -> failwith "attempted to drop last in empty list"
         else new_lines
       in
       iprint trimmed_new_lines;
@@ -223,4 +230,4 @@ let rec next_char lines history_index cmd_history editing_row =
   | UNMAPPED -> next_char lines history_index cmd_history editing_row
 
 let next_cmd cmd_history =
-  String.concat "" (next_char [ "" ] (-1) cmd_history 0)
+  String.concat ~sep:"" (next_char [ "" ] (-1) cmd_history 0)

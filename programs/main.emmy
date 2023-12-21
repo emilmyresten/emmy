@@ -1,10 +1,9 @@
-(def a 1)
 (def fib 
     (fn x ->
         (cond 
             (< x 3) 1 
             (+ 
-                (do (println a) 
+                (do (println x) 
                     (fib (- x 1)))
                 (fib (- x 2))))))
-(fib 4)
+(fib 10)

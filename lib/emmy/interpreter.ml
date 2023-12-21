@@ -1,4 +1,4 @@
-open Printf
+open Base
 open Pprint
 open Extensions
 open Expressions
@@ -8,28 +8,41 @@ open Utils
 let () = Random.init 0
 
 let get_from_ctx id ctx =
-  try List.assoc id ctx
-  with _ ->
-    failwith
-      (sprintf "Unbound identifier %s in context [%s]" id
-         (string_of_context ctx))
+  match List.Assoc.find ctx ~equal:String.equal id with
+  | Some value -> value
+  | None ->
+      failwith
+        (Printf.sprintf "Unbound identifier %s in context [%s]" id
+           (string_of_context ctx))
 
 let rec get_unique_name p bindings =
   let suffix = Random.int 512 in
-  let name_attempt = p ^ "#" ^ string_of_int suffix in
-  if List.mem name_attempt bindings then get_unique_name p bindings
+  let name_attempt = p ^ "#" ^ Int.to_string suffix in
+  if List.exists bindings ~f:(fun binding -> Poly.(binding = name_attempt)) then
+    get_unique_name p bindings
   else name_attempt
 
 let rec beta_reduce param_ids replacements expr =
   match expr with
   | Identifier id ->
-      if List.mem id param_ids then
-        let param_position_opt = List.find_index (fun m -> m = id) param_ids in
+      if List.exists param_ids ~f:(fun param_id -> Poly.(param_id = id)) then
+        let param_position_opt =
+          Stdlib.(List.find_index (fun m -> Poly.(m = id)) param_ids)
+        in
         match param_position_opt with
-        | Some pos -> List.nth replacements pos
+        | Some pos -> (
+            match List.nth replacements pos with
+            | Some arg -> arg
+            | None ->
+                failwith
+                  (Printf.sprintf
+                     "Identifier %s is member of the parameter list, but \
+                      couldn't find corresponding argument during \
+                      beta-reduction."
+                     id))
         | None ->
             failwith
-              (sprintf
+              (Printf.sprintf
                  "Identifier %s is member of the parameter list, but couldn't \
                   find index during beta-reduction."
                  id)
@@ -37,22 +50,22 @@ let rec beta_reduce param_ids replacements expr =
   | Def (id, expr) -> Def (id, beta_reduce param_ids replacements expr)
   | Fn (params, expr) -> Fn (params, beta_reduce param_ids replacements expr)
   | Invoke (to_apply, args) ->
-      Invoke (to_apply, List.map (beta_reduce param_ids replacements) args)
+      Invoke (to_apply, List.map ~f:(beta_reduce param_ids replacements) args)
   | Binop (op, lhs, rhs) ->
       Binop
         ( op,
           beta_reduce param_ids replacements lhs,
           beta_reduce param_ids replacements rhs )
-  | List exprs -> List (List.map (beta_reduce param_ids replacements) exprs)
+  | List exprs -> List (List.map ~f:(beta_reduce param_ids replacements) exprs)
   | True | False | Number _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (beta_reduce param_ids replacements) exprs,
+        ( List.map ~f:(beta_reduce param_ids replacements) exprs,
           beta_reduce param_ids replacements default )
   | LetBinding (bindings, expr) ->
       let beta_reduced_bindings =
         List.map
-          (fun (id, expr) -> (id, beta_reduce param_ids replacements expr))
+          ~f:(fun (id, expr) -> (id, beta_reduce param_ids replacements expr))
           bindings
       in
       LetBinding (beta_reduced_bindings, beta_reduce param_ids replacements expr)
@@ -68,7 +81,7 @@ and alpha_convert scope replacements expr =
      As soon as bindings occur in two scopes, all subsequent have to be renamed to the binding of the nearest scope. *)
   match expr with
   | Identifier id -> (
-      match List.assoc_opt id replacements with
+      match List.Assoc.find replacements id ~equal:String.equal with
       | Some name -> Identifier name
       | None -> expr)
   | Def (_, expr) -> alpha_convert scope replacements expr
@@ -78,41 +91,46 @@ and alpha_convert scope replacements expr =
       let bind = List.unique_right scope params in
       (* add these to the seen bindings *)
       let new_replace =
-        List.fold_left
-          (fun a p -> [ (p, get_unique_name p scope) ] @ a)
-          [] conflicts
+        List.fold
+          ~f:(fun a p -> [ (p, get_unique_name p scope) ] @ a)
+          ~init:[] conflicts
         |> List.rev
       in
-      let new_params = List.map (fun (_, v) -> v) new_replace @ bind in
+      let new_params = List.map ~f:(fun (_, v) -> v) new_replace @ bind in
       let new_scope = new_params @ bind @ scope in
       Fn (new_params, alpha_convert new_scope new_replace expr)
   | Invoke (to_apply, args) ->
       Invoke
         ( alpha_convert scope replacements to_apply,
-          List.map (alpha_convert scope replacements) args )
+          List.map ~f:(alpha_convert scope replacements) args )
   | Binop (op, lhs, rhs) ->
       Binop
         ( op,
           alpha_convert scope replacements lhs,
           alpha_convert scope replacements rhs )
-  | List exprs -> List (List.map (alpha_convert scope replacements) exprs)
+  | List exprs -> List (List.map ~f:(alpha_convert scope replacements) exprs)
   | True | False | Number _ | String _ | Unit -> expr
   | Cond (exprs, default) ->
       Cond
-        ( List.map (alpha_convert scope replacements) exprs,
+        ( List.map ~f:(alpha_convert scope replacements) exprs,
           alpha_convert scope replacements default )
   | LetBinding (bnds, expr) ->
-      let bindings = List.map (fun (id, _) -> id) bnds in
+      let bindings = List.map ~f:(fun (id, _) -> id) bnds in
       let conflicts = List.overlap scope bindings in
       let bind = List.unique_right scope bindings in
       let new_replace =
-        List.fold_left
-          (fun a p -> [ (p, get_unique_name p scope) ] @ a)
-          [] conflicts
+        List.fold
+          ~f:(fun a p -> [ (p, get_unique_name p scope) ] @ a)
+          ~init:[] conflicts
       in
-      let new_let_bindings = List.map (fun (_, v) -> v) new_replace @ bind in
+      let new_let_bindings = List.map ~f:(fun (_, v) -> v) new_replace @ bind in
+      let maybe_new_bnds =
+        List.map ~f:(fun (_, v) -> v) bnds |> List.zip new_let_bindings
+      in
       let new_bnds =
-        List.map (fun (_, v) -> v) bnds |> List.combine new_let_bindings
+        match maybe_new_bnds with
+        | Ok bnds -> bnds
+        | Unequal_lengths -> failwith "trying to zip lists of unequal lengths."
       in
       let new_scope = new_let_bindings @ bind @ scope in
       LetBinding (new_bnds, alpha_convert new_scope new_replace expr)
@@ -145,25 +163,27 @@ let rec step expr ctx =
           check_arity 1 args;
           step_list exprs args ctx
       | _ ->
-          failwith (sprintf "%s is not a function." (string_of_expr to_apply)))
+          failwith
+            (Printf.sprintf "%s is not a function." (string_of_expr to_apply)))
   | Invoke (to_apply, args) when is_list_of_values args -> (
       try (apply_builtin to_apply args, ctx)
       with _ -> (Invoke (fst (step to_apply ctx), args), ctx))
   | Invoke (to_apply, args) ->
-      (Invoke (to_apply, List.map (fun m -> fst (step m ctx)) args), ctx)
+      (Invoke (to_apply, List.map ~f:(fun m -> fst (step m ctx)) args), ctx)
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
   | Binop (op, lhs, rhs) when is_value lhs ->
       (Binop (op, lhs, fst (step rhs ctx)), ctx)
   | Binop (op, lhs, rhs) -> (Binop (op, fst (step lhs ctx), rhs), ctx)
   | List exprs when is_list_of_values exprs -> (List exprs, ctx)
-  | List exprs -> (List (List.map (fun expr -> fst (step expr ctx)) exprs), ctx)
+  | List exprs ->
+      (List (List.map ~f:(fun expr -> fst (step expr ctx)) exprs), ctx)
   | True | False | Number _ | String _ -> (expr, ctx)
   | Unit -> failwith "Shouldn't encounter unit when Parsing."
   | Cond (exprs, default) -> lazy_step_cond (exprs, default) ctx
   | LetBinding (bindings, expr)
-    when List.for_all (fun (_, expr) -> is_value expr) bindings ->
-      let binding_ids = List.map (fun (id, _) -> id) bindings in
-      let binding_exprs = List.map (fun (_, expr) -> expr) bindings in
+    when List.for_all ~f:(fun (_, expr) -> is_value expr) bindings ->
+      let binding_ids = List.map ~f:(fun (id, _) -> id) bindings in
+      let binding_exprs = List.map ~f:(fun (_, expr) -> expr) bindings in
       let alpha_converted = alpha_convert binding_ids [] expr in
       let beta_reduced =
         beta_reduce binding_ids binding_exprs alpha_converted
@@ -172,7 +192,7 @@ let rec step expr ctx =
       (* need to beta-reduce here. *)
   | LetBinding (bindings, expr) ->
       let stepped_bindings =
-        List.map (fun (id, expr) -> (id, fst (step expr ctx))) bindings
+        List.map ~f:(fun (id, expr) -> (id, fst (step expr ctx))) bindings
       in
       (LetBinding (stepped_bindings, expr), ctx)
   | Do (unit_expr, actual_expr) when is_value unit_expr -> step actual_expr ctx
@@ -189,33 +209,36 @@ and step_binop expr ctx =
   | Binop (Division, Number lhs, Number rhs) -> (Number (lhs /. rhs), ctx)
   | Binop (Mod, Number lhs, Number rhs)
     when Float.is_integer lhs && Float.is_integer rhs ->
-      (Number (float_of_int (int_of_float lhs mod int_of_float rhs)), ctx)
+      (Number (Int.to_float (Float.to_int lhs % Float.to_int rhs)), ctx)
   (* Strings *)
   | Binop (Plus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   | Binop (Minus, String lhs, String rhs) -> (String (lhs ^ rhs), ctx)
   (* Boolean logic *)
   | Binop (Equals, Number lhs, Number rhs) ->
-      if lhs = rhs then (True, ctx) else (False, ctx)
+      if Poly.(lhs = rhs) then (True, ctx) else (False, ctx)
   | Binop (LessThan, Number lhs, Number rhs) ->
-      if lhs < rhs then (True, ctx) else (False, ctx)
+      if Poly.(lhs < rhs) then (True, ctx) else (False, ctx)
   | Binop (Equals, String lhs, String rhs) ->
-      if lhs = rhs then (True, ctx) else (False, ctx)
+      if Poly.(lhs = rhs) then (True, ctx) else (False, ctx)
   | Binop (Equals, True, True) -> (True, ctx)
   | Binop (Equals, False, False) -> (False, ctx)
   | Binop (Equals, _, _) -> (False, ctx)
   | _ ->
       failwith
-        (sprintf "Could not execute binary operation on %s."
+        (Printf.sprintf "Could not execute binary operation on %s."
            (string_of_expr expr))
 
 and step_list exprs args ctx =
   match args with
   | Number nth :: [] when Float.is_integer nth ->
       let res =
-        try List.nth exprs (int_of_float nth)
-        with _ ->
-          failwith (sprintf "Index %d is out of bounds" (int_of_float nth))
+        match List.nth exprs (Float.to_int nth) with
+        | Some r -> r
+        | None ->
+            failwith
+              (Printf.sprintf "Index %d is out of bounds" (Float.to_int nth))
       in
+
       (res, ctx)
   | _ -> failwith "Key must be integer"
 
@@ -241,13 +264,20 @@ let eval_program p initial_ctx =
   let program = Parser.parse char_seq in
   match program with
   | Program exprs ->
-      let last = List.hd (List.rev exprs)
-      and other = List.rev (List.tl (List.rev exprs)) in
+      let last =
+        match List.last exprs with
+        | Some expr -> expr
+        | None -> failwith "couldnt find expr"
+      and other =
+        match List.tl (List.rev exprs) with
+        | Some exprs -> List.rev exprs
+        | None -> failwith "couldnt find exprs"
+      in
       let new_ctx =
-        List.fold_left
-          (fun accumulating_ctx expr ->
+        List.fold
+          ~f:(fun accumulating_ctx expr ->
             let _, extended_ctx = eval expr accumulating_ctx in
             extended_ctx @ accumulating_ctx)
-          initial_ctx other
+          ~init:initial_ctx other
       in
       eval last new_ctx

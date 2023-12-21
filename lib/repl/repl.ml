@@ -1,3 +1,4 @@
+open Base
 open Term
 open Emmy
 
@@ -17,7 +18,7 @@ let rec loop ctx cmd_history =
     loop ctx history;
     ()
   with e ->
-    iprint_format "%s\n" (Printexc.to_string e);
+    iprint_format "%s\n" (Exn.to_string e);
     loop ctx history;
     ()
 

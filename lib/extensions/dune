@@ -1,2 +1,3 @@
 (library
- (name extensions))
+ (name extensions)
+ (libraries base))

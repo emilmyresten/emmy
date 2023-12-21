@@ -1,3 +1,4 @@
+open Base
 open Printf
 
 let check_arity expected args =

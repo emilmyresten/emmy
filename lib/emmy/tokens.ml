@@ -1,3 +1,4 @@
+open Base
 open Printf
 
 type current_position = { mutable row : int; mutable col : int }
@@ -67,8 +68,8 @@ let string_of_token_type = function
   | LET -> "keyword let"
   | DO -> "keyword do"
   | NUMBER_TOKEN v ->
-      if Float.is_integer v then string_of_int (int_of_float v)
-      else string_of_float v
+      if Float.is_integer v then Int.to_string (Float.to_int v)
+      else Float.to_string v
   | STRING_TOKEN str -> sprintf "\"%s\"" str
   | IDENTIFIER_TOKEN id -> sprintf "IDENTIFIER %s" id
   | UNKNOWN c -> sprintf "UNKNOWN %c" c

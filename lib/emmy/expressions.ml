@@ -1,3 +1,5 @@
+open Base
+
 type program = Program of expression list
 and binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
 
@@ -25,4 +27,4 @@ let rec is_value expr =
   | List exprs when is_list_of_values exprs -> true
   | _ -> false
 
-and is_list_of_values exprs = List.for_all (fun m -> is_value m) exprs
+and is_list_of_values exprs = List.for_all ~f:(fun m -> is_value m) exprs

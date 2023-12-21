@@ -1,4 +1,4 @@
-open Printf
+open Base
 open Expressions
 open Tokens
 open Lexer
@@ -6,11 +6,11 @@ open Lexer
 let eat expected chars =
   let token, chars = next_token chars in
   match token with
-  | Token (tk, _) when tk = expected -> chars
+  | Token (tk, _) when Poly.(tk = expected) -> chars
   | _ ->
       let row, col = get_row_col token in
       let err_msg =
-        sprintf "Expected token %s, found token %s at %d, %d\n"
+        Printf.sprintf "Expected token %s, found token %s at %d, %d\n"
           (string_of_token_type expected)
           (string_of_token token) row col
       in
@@ -70,12 +70,12 @@ let rec do_parse chars =
   | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, chars)
   | Token (UNKNOWN c, Position (row, col)) ->
       let err_msg =
-        sprintf "Found %s at %d, %d\n"
+        Printf.sprintf "Found %s at %d, %d\n"
           (string_of_token_type (UNKNOWN c))
           row col
       in
       failwith err_msg
-  | tk -> failwith (sprintf "Unexpected token %s " (string_of_token tk))
+  | tk -> failwith (Printf.sprintf "Unexpected token %s " (string_of_token tk))
 
 and parse_list_ds chars =
   let exprs, chars = aux_parse_list_ds [] chars in
@@ -87,7 +87,8 @@ and parse_def_expr chars =
     | Token (IDENTIFIER_TOKEN id, _), chars -> (id, chars)
     | tk ->
         failwith
-          (sprintf "Expected Identifier, found %s " (string_of_token (fst tk)))
+          (Printf.sprintf "Expected Identifier, found %s "
+             (string_of_token (fst tk)))
   in
   let expr, chars = do_parse chars in
   (Def (id, expr), chars)
@@ -106,11 +107,11 @@ and parse_let_expr chars =
       | Identifier id -> id
       | _ ->
           failwith
-            (sprintf "lhs in let-binding must be identifier, found %s."
+            (Printf.sprintf "lhs in let-binding must be identifier, found %s."
                (Pprint.string_of_expr id))
     in
     let expr, chars = do_parse chars in
-    if peek chars = Some RBRACKET then
+    if Poly.(peek chars = Some RBRACKET) then
       let chars = eat RBRACKET chars in
       ((id_str, expr) :: bindings, chars)
     else parse_let_aux ((id_str, expr) :: bindings) chars
@@ -127,13 +128,13 @@ and parse_do_expr chars =
 and parse_cond_expr chars =
   let rec parse_cond_aux exprs chars =
     let case, chars = do_parse chars in
-    if peek chars = Some RPAREN then
-      if List.length exprs mod 2 = 1 then
+    if Poly.(peek chars = Some RPAREN) then
+      if List.length exprs % 2 = 1 then
         failwith "Must provide default case for cond-expression"
       else (Cond (List.rev exprs, case), chars)
     else
       let expr, chars = do_parse chars in
-      if peek chars = Some RPAREN then
+      if Poly.(peek chars = Some RPAREN) then
         failwith "Must provide default case for cond-expression"
       else parse_cond_aux (expr :: case :: exprs) chars
   in

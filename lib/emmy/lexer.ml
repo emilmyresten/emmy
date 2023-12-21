@@ -1,3 +1,4 @@
+open Base
 open Extensions
 open Tokens
 
@@ -20,17 +21,17 @@ let lex_number chars =
     match rem with
     | h :: t when Char.is_digit h ->
         aux ((acc * 10) + Char.as_int h) t ~lexing_decimal_part
-    | h :: t when h = '.' ->
+    | h :: t when Poly.(h = '.') ->
         if not lexing_decimal_part then
           let integer_part = acc in
           let decimal_part, rem = aux 0 t ~lexing_decimal_part:true in
-          let float = string_of_int integer_part ^ "." ^ decimal_part in
+          let float = Int.to_string integer_part ^ "." ^ decimal_part in
           (float, rem)
         else failwith "Error while parsing float"
-    | _ -> (string_of_int acc, rem)
+    | _ -> (Int.to_string acc, rem)
   in
   let number, rem = aux 0 chars ~lexing_decimal_part:false in
-  (Token (NUMBER_TOKEN (float_of_string number), reified_position ()), rem)
+  (Token (NUMBER_TOKEN (Float.of_string number), reified_position ()), rem)
 
 let lex_string chars =
   let rec aux acc rem =
@@ -51,7 +52,7 @@ let lex_identifier_or_keyword chars =
     | h :: t -> aux (acc ^ String.make 1 h) t
   in
   let (parsed, pos), remaining = aux "" chars in
-  match List.assoc_opt parsed keywords with
+  match List.Assoc.find keywords ~equal:String.equal parsed with
   | Some token_type -> (Token (token_type, pos), remaining)
   | None -> (Token (IDENTIFIER_TOKEN parsed, pos), remaining)
 
@@ -123,17 +124,17 @@ and peek_number chars =
     match rem with
     | h :: t when Char.is_digit h ->
         aux ((acc * 10) + Char.as_int h) t ~lexing_decimal_part
-    | h :: t when h = '.' ->
+    | h :: t when Poly.(h = '.') ->
         if not lexing_decimal_part then
           let integer_part = acc in
           let decimal_part = aux 0 t ~lexing_decimal_part:true in
-          let float = string_of_int integer_part ^ "." ^ decimal_part in
+          let float = Int.to_string integer_part ^ "." ^ decimal_part in
           float
         else failwith "Error while lexig float"
-    | _ -> string_of_int acc
+    | _ -> Int.to_string acc
   in
   let number = aux 0 chars ~lexing_decimal_part:false in
-  Some (NUMBER_TOKEN (float_of_string number))
+  Some (NUMBER_TOKEN (Float.of_string number))
 
 and peek_identifier_or_keyword chars =
   (* allow every symbol except white-space in identifier. *)
@@ -144,6 +145,6 @@ and peek_identifier_or_keyword chars =
     | h :: t -> aux (acc ^ String.make 1 h) t
   in
   let parsed = aux "" chars in
-  match List.assoc_opt parsed keywords with
+  match List.Assoc.find keywords ~equal:String.equal parsed with
   | Some token_type -> Some token_type
   | None -> Some (IDENTIFIER_TOKEN parsed)

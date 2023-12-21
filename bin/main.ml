@@ -1,3 +1,5 @@
+open Base
+open Stdio
 open Repl
 open Emmy
 
@@ -9,14 +11,19 @@ let anon_fun filename = input_files := filename :: !input_files
 let speclist = []
 
 let () =
-  Arg.parse speclist anon_fun usage_msg;
+  Stdlib.(Arg.parse speclist anon_fun usage_msg);
   if List.is_empty !input_files then start_repl ()
   else
     let input_file = List.hd !input_files in
-    let program = Io.read_lines (open_in input_file) |> String.concat "\n" in
-    try
-      let eval, _ = Interpreter.eval_program program [] in
-      match eval with
-      | Expressions.Unit -> ()
-      | _ -> Printf.printf "%s\n" (Pprint.string_of_expr eval)
-    with e -> Printf.printf "%s\n" (Printexc.to_string e)
+    match input_file with
+    | None -> ()
+    | Some f -> (
+        let program =
+          Io.read_lines (In_channel.create f) |> String.concat ~sep:"\n"
+        in
+        try
+          let eval, _ = Interpreter.eval_program program [] in
+          match eval with
+          | Expressions.Unit -> ()
+          | _ -> printf "%s\n" (Pprint.string_of_expr eval)
+        with e -> printf "%s\n" (Exn.to_string e))
