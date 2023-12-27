@@ -44,7 +44,7 @@ and string_of_binop binop =
 
 and string_of_expr expr =
   match expr with
-  | Def (id, expr) -> Printf.sprintf "(def %s %s)" id (string_of_expr expr)
+  | Def (id, expr) -> Printf.sprintf "(def %s %s)\n" id (string_of_expr expr)
   | Identifier id -> Printf.sprintf "Identifier %s" id
   | Invoke (to_apply, args) ->
       Printf.sprintf "%s %s" (string_of_expr to_apply)

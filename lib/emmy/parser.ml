@@ -1,10 +1,8 @@
 open Base
-open Stdio
 open Expressions
 open Tokens
 open Lexer
-open Pprint
-(* open Io *)
+open Io
 
 let eat expected chars =
   let token, chars = next_token chars in
@@ -227,25 +225,22 @@ and parse_requires chars =
       get_requires_aux [] chars
   | _ -> (None, chars)
 
-(* let rec get_imports_aux source_files chars =
-       let token, chars = next_token chars in
-       match token with
-       | Token (IDENTIFIER_TOKEN filename, _) -> (
-           let source_file = source_file ~filename |> String.to_list in
-           let transitive_imports = parse_imports source_file in
-           match transitive_imports with
-           | Some (transitive_source_files, source_file) ->
-               get_imports_aux
-                 (transitive_source_files @ source_file @ source_files)
-                 chars
-           | None -> get_imports_aux (source_file @ source_files) chars)
-       | Token (RPAREN, _) -> Some (source_files, chars)
-       | _ -> None
-     in
-     get_imports_aux [] chars
-   with _ -> None *)
+and parse_namespaces chars =
+  let namespace = parse_namespace chars in
+  let load_namespaces_aux ~init:namespaces =
+    match namespace with
+    | Namespace (_, None, _) -> namespaces
+    | Namespace (_, Some reqs, _) ->
+        List.fold
+          ~f:(fun namespaces req ->
+            let chars = source_file ~filename:req |> String.to_list in
+            parse_namespaces chars @ namespaces)
+          ~init:namespaces reqs
+  in
+  let namespaces = load_namespaces_aux ~init:[ namespace ] in
+  namespaces
 
 let parse chars =
-  let namespace = parse_namespace chars in
-  printf "%s" (string_of_program (Program [ namespace ]));
-  Program [ namespace ]
+  let namespaces = parse_namespaces chars in
+  (* printf "%s\n" (string_of_program (Program namespaces)); *)
+  Program namespaces

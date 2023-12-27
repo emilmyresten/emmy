@@ -1,0 +1,4 @@
+(namespace transitive)
+
+
+(def transitive 1)

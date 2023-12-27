@@ -1,6 +1,9 @@
 (namespace example
-    (requires foo
-              bar))
+    (requires ./examples/fib
+              ./examples/collatz
+              ./examples/directdep))
 
-(println 1)
-(println 2)
+(println (fib 10))
+(println (collatz 10))
+
+a
