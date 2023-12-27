@@ -1,4 +1,6 @@
-(namespace example)
+(namespace example
+    (requires foo
+              bar))
 
 (println 1)
 (println 2)

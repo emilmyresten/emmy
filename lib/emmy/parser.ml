@@ -1,7 +1,9 @@
 open Base
+open Stdio
 open Expressions
 open Tokens
 open Lexer
+open Pprint
 (* open Io *)
 
 let eat expected chars =
@@ -183,10 +185,11 @@ and aux_parse_list_ds exprs chars =
       let expr, chars = do_parse_expr chars in
       aux_parse_list_ds (expr :: exprs) chars
 
-let parse_namespace chars =
+let rec parse_namespace chars =
   let chars = eat LPAREN chars in
   let chars = eat NAMESPACE chars in
   let name, chars = next_token chars in
+  let requires, chars = parse_requires chars in
 
   let chars = eat RPAREN chars in
   let rec parse_exprs_aux exprs chars =
@@ -200,14 +203,29 @@ let parse_namespace chars =
   in
   match name with
   | Token (IDENTIFIER_TOKEN ns, _) ->
-      Namespace (ns, None, parse_exprs_aux [] chars)
+      Namespace (ns, requires, parse_exprs_aux [] chars)
   | t ->
       let err_msg =
         Printf.sprintf "Found %s when parsing namespace, expected identifier.\n"
           (string_of_token t)
       in
       failwith err_msg
-(* and parse_requires chars = *)
+
+and parse_requires chars =
+  match peek chars with
+  | Some LPAREN ->
+      let chars = eat LPAREN chars in
+      let chars = eat REQUIRES chars in
+      let rec get_requires_aux requires chars =
+        let token, chars = next_token chars in
+        match token with
+        | Token (IDENTIFIER_TOKEN filename, _) ->
+            get_requires_aux (filename :: requires) chars
+        | Token (RPAREN, _) -> (Some (List.rev requires), chars)
+        | _ -> (None, chars)
+      in
+      get_requires_aux [] chars
+  | _ -> (None, chars)
 
 (* let rec get_imports_aux source_files chars =
        let token, chars = next_token chars in
@@ -229,4 +247,5 @@ let parse_namespace chars =
 
 let parse chars =
   let namespace = parse_namespace chars in
+  printf "%s" (string_of_program (Program [ namespace ]));
   Program [ namespace ]

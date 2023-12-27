@@ -69,3 +69,19 @@ and string_of_context ctx =
     ~f:(fun (k, v) -> Printf.sprintf "%s = %s\n" k (string_of_expr v))
     ctx
   |> String.concat ~sep:""
+
+and string_of_namespace namespace =
+  match namespace with
+  | Namespace (name, requires, exprs) ->
+      Printf.sprintf "(namespace %s" name
+      ^ (match requires with
+        | Some reqs -> "\n\t(requires " ^ String.concat ~sep:" " reqs
+        | None -> "")
+      ^ ")\n" ^ string_of_expr_list exprs
+
+and string_of_program program =
+  match program with
+  | Program namespaces ->
+      List.fold
+        ~f:(fun acc ns -> acc ^ string_of_namespace ns)
+        ~init:"" namespaces
