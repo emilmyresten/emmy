@@ -61,10 +61,11 @@ and string_of_expr expr =
       Printf.sprintf "(do (%s) %s)" (string_of_expr unit_expr)
         (string_of_expr actual_expr)
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
-  | Fn (params, expr) -> string_of_val (Fn (params, expr))
   | List exprs -> Printf.sprintf "[%s]" (string_of_expr_list exprs)
-  | Number _ | String _ | True | False | Unit -> string_of_val expr
+  | Fn (_, _) | Number _ | String _ | True | False | Unit -> string_of_val expr
 
 and string_of_context ctx =
-  List.map ~f:(fun (k, v) -> Printf.sprintf "%s = %s\n" k (string_of_val v)) ctx
+  List.map
+    ~f:(fun (k, v) -> Printf.sprintf "%s = %s\n" k (string_of_expr v))
+    ctx
   |> String.concat ~sep:""

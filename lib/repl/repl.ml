@@ -7,7 +7,8 @@ let rec loop ctx cmd_history =
   iprint_format "%s\n" read;
   let history = read :: cmd_history in
   try
-    let eval, ctx = Interpreter.eval_program read ctx in
+    let nsed_read = "(namespace repl)\n" ^ read in
+    let eval, ctx = Interpreter.eval_program nsed_read ctx in
     let () =
       match eval with
       | Expressions.Unit -> ()

@@ -2,7 +2,7 @@ open Base
 open Expressions
 open Tokens
 open Lexer
-open Io
+(* open Io *)
 
 let eat expected chars =
   let token, chars = next_token chars in
@@ -17,7 +17,7 @@ let eat expected chars =
       in
       raise (Failure err_msg)
 
-let rec do_parse chars =
+let rec do_parse_expr chars =
   let token, chars = next_token chars in
   match token with
   | Token (LPAREN, _) ->
@@ -91,18 +91,18 @@ and parse_def_expr chars =
           (Printf.sprintf "Expected Identifier, found %s "
              (string_of_token (fst tk)))
   in
-  let expr, chars = do_parse chars in
+  let expr, chars = do_parse_expr chars in
   (Def (id, expr), chars)
 
 and parse_binop_expr op chars =
-  let lhs, chars = do_parse chars in
-  let rhs, chars = do_parse chars in
+  let lhs, chars = do_parse_expr chars in
+  let rhs, chars = do_parse_expr chars in
   (Binop (op, lhs, rhs), chars)
 
 and parse_let_expr chars =
   let chars = eat LBRACKET chars in
   let rec parse_let_aux bindings chars =
-    let id, chars = do_parse chars in
+    let id, chars = do_parse_expr chars in
     let id_str =
       match id with
       | Identifier id -> id
@@ -111,30 +111,30 @@ and parse_let_expr chars =
             (Printf.sprintf "lhs in let-binding must be identifier, found %s."
                (Pprint.string_of_expr id))
     in
-    let expr, chars = do_parse chars in
+    let expr, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RBRACKET) then
       let chars = eat RBRACKET chars in
       ((id_str, expr) :: bindings, chars)
     else parse_let_aux ((id_str, expr) :: bindings) chars
   in
   let bindings, chars = parse_let_aux [] chars in
-  let expr, chars = do_parse chars in
+  let expr, chars = do_parse_expr chars in
   (LetBinding (bindings, expr), chars)
 
 and parse_do_expr chars =
-  let unit_expr, chars = do_parse chars in
-  let actual_expr, chars = do_parse chars in
+  let unit_expr, chars = do_parse_expr chars in
+  let actual_expr, chars = do_parse_expr chars in
   (Do (unit_expr, actual_expr), chars)
 
 and parse_cond_expr chars =
   let rec parse_cond_aux exprs chars =
-    let case, chars = do_parse chars in
+    let case, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RPAREN) then
       if List.length exprs % 2 = 1 then
         failwith "Must provide default case for cond-expression"
       else (Cond (List.rev exprs, case), chars)
     else
-      let expr, chars = do_parse chars in
+      let expr, chars = do_parse_expr chars in
       if Poly.(peek chars = Some RPAREN) then
         failwith "Must provide default case for cond-expression"
       else parse_cond_aux (expr :: case :: exprs) chars
@@ -157,11 +157,11 @@ and parse_fn_expr chars =
   in
   let params, chars = get_params_aux [] chars in
   let chars = eat ARROW chars in
-  let expr, chars = do_parse chars in
+  let expr, chars = do_parse_expr chars in
   (Fn (params, expr), chars)
 
 and parse_invoke_expr chars =
-  let to_apply, chars = do_parse chars in
+  let to_apply, chars = do_parse_expr chars in
   let args, chars = aux_parse_arg_list [] chars in
   (Invoke (to_apply, args), chars)
 
@@ -171,7 +171,7 @@ and aux_parse_arg_list args chars =
       (List.rev args, chars)
       (* we want to keep parsing the arguments until we hit the closing bracket of the function invocation. *)
   | _ ->
-      let arg, chars = do_parse chars in
+      let arg, chars = do_parse_expr chars in
       aux_parse_arg_list (arg :: args) chars
 
 and aux_parse_list_ds exprs chars =
@@ -180,42 +180,53 @@ and aux_parse_list_ds exprs chars =
       let chars = eat RBRACKET chars in
       (List.rev exprs, chars)
   | _ ->
-      let expr, chars = do_parse chars in
+      let expr, chars = do_parse_expr chars in
       aux_parse_list_ds (expr :: exprs) chars
 
-let rec parse_imports chars =
-  try
-    let chars = eat LPAREN chars in
-    let chars = eat IMPORT chars in
-    let rec get_imports_aux source_files chars =
-      let token, chars = next_token chars in
-      match token with
-      | Token (IDENTIFIER_TOKEN filename, _) -> (
-          let source_file = source_file ~filename |> String.to_list in
-          let transitive_imports = parse_imports source_file in
-          match transitive_imports with
-          | Some (transitive_source_files, source_file) ->
-              get_imports_aux
-                (transitive_source_files @ source_file @ source_files)
-                chars
-          | None -> get_imports_aux (source_file @ source_files) chars)
-      | Token (RPAREN, _) -> Some (source_files, chars)
-      | _ -> None
-    in
-    get_imports_aux [] chars
-  with _ -> None
+let parse_namespace chars =
+  let chars = eat LPAREN chars in
+  let chars = eat NAMESPACE chars in
+  let name, chars = next_token chars in
 
-let parse chars =
-  let imports = parse_imports chars in
-  let rec parse_aux exprs chars =
+  let chars = eat RPAREN chars in
+  let rec parse_exprs_aux exprs chars =
     match peek chars with
     | Some _tok ->
-        let expr, rem = do_parse chars in
-        parse_aux (expr :: exprs) rem
+        let expr, rem = do_parse_expr chars in
+        parse_exprs_aux (expr :: exprs) rem
     | None ->
         let _ = eat EOF chars in
-        Program (List.rev exprs)
+        List.rev exprs
   in
-  match imports with
-  | Some (imported_sources, chars) -> parse_aux [] (imported_sources @ chars)
-  | None -> parse_aux [] chars
+  match name with
+  | Token (IDENTIFIER_TOKEN ns, _) ->
+      Namespace (ns, None, parse_exprs_aux [] chars)
+  | t ->
+      let err_msg =
+        Printf.sprintf "Found %s when parsing namespace, expected identifier.\n"
+          (string_of_token t)
+      in
+      failwith err_msg
+(* and parse_requires chars = *)
+
+(* let rec get_imports_aux source_files chars =
+       let token, chars = next_token chars in
+       match token with
+       | Token (IDENTIFIER_TOKEN filename, _) -> (
+           let source_file = source_file ~filename |> String.to_list in
+           let transitive_imports = parse_imports source_file in
+           match transitive_imports with
+           | Some (transitive_source_files, source_file) ->
+               get_imports_aux
+                 (transitive_source_files @ source_file @ source_files)
+                 chars
+           | None -> get_imports_aux (source_file @ source_files) chars)
+       | Token (RPAREN, _) -> Some (source_files, chars)
+       | _ -> None
+     in
+     get_imports_aux [] chars
+   with _ -> None *)
+
+let parse chars =
+  let namespace = parse_namespace chars in
+  Program [ namespace ]

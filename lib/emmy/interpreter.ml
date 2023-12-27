@@ -263,21 +263,18 @@ let eval_program p initial_ctx =
   let char_seq = String.to_list p in
   let program = Parser.parse char_seq in
   match program with
-  | Program exprs ->
-      let last =
-        match List.last exprs with
-        | Some expr -> expr
-        | None -> failwith "couldnt find expr"
-      and other =
-        match List.tl (List.rev exprs) with
-        | Some exprs -> List.rev exprs
-        | None -> failwith "couldnt find exprs"
-      in
-      let new_ctx =
+  | Program namespaces -> (
+      let ctx, res =
         List.fold
-          ~f:(fun accumulating_ctx expr ->
-            let _, extended_ctx = eval expr accumulating_ctx in
-            extended_ctx @ accumulating_ctx)
-          ~init:initial_ctx other
+          ~f:(fun (ctx_acc, result) (Namespace (_, _, exprs)) ->
+            let new_ctx, new_result =
+              List.fold
+                ~f:(fun (ctx_acc, _) expr ->
+                  let result, extended_ctx = eval expr ctx_acc in
+                  (extended_ctx, Some result))
+                ~init:(ctx_acc, result) exprs
+            in
+            (new_ctx, new_result))
+          ~init:(initial_ctx, None) namespaces
       in
-      eval last new_ctx
+      match res with Some result -> (result, ctx) | None -> (Unit, ctx))

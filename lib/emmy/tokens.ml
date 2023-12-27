@@ -26,7 +26,8 @@ type token_type =
   | COND
   | LET
   | DO
-  | IMPORT
+  | NAMESPACE
+  | REQUIRES
   | NUMBER_TOKEN of float
   | STRING_TOKEN of string
   | IDENTIFIER_TOKEN of string
@@ -44,7 +45,8 @@ let keywords =
     ("cond", COND);
     ("let", LET);
     ("do", DO);
-    ("import", IMPORT);
+    ("namespace", NAMESPACE);
+    ("requires", REQUIRES);
   ]
 
 let get_position = function Token (_, pos) -> pos
@@ -69,7 +71,8 @@ let string_of_token_type = function
   | COND -> "keyword cond"
   | LET -> "keyword let"
   | DO -> "keyword do"
-  | IMPORT -> "keyword import"
+  | NAMESPACE -> "keyword namespace"
+  | REQUIRES -> "keyword requires"
   | NUMBER_TOKEN v ->
       if Float.is_integer v then Int.to_string (Float.to_int v)
       else Float.to_string v

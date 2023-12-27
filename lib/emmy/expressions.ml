@@ -1,7 +1,7 @@
 open Base
 
-type program = Program of expression list
-and binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
+type program = Program of namespace list
+and namespace = Namespace of string * string list option * expression list
 
 and expression =
   | Def of string * expression
@@ -19,6 +19,8 @@ and expression =
   | True
   | False
   | Unit
+
+and binop = Plus | Minus | Times | Division | Mod | Equals | LessThan
 
 (* Also called a 'normal form' *)
 let rec is_value expr =

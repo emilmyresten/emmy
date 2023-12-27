@@ -1,6 +1,4 @@
-(import 
-    ./examples/fib
-    ./examples/collatz)
+(namespace example)
 
-(println (fib 10))
-(println (collatz 10))
+(println 1)
+(println 2)
