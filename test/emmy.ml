@@ -3,7 +3,8 @@ open Alcotest
 open Emmy
 
 let simple_emmy_test ?(expected_context = "") in_program expected_result () =
-  let eval, ctx = Interpreter.eval_program in_program [] in
+  let nsed_program = "(namespace tests)\n" ^ in_program in
+  let eval, ctx = Interpreter.eval_program nsed_program [] in
   let expected_eval = expected_result in
   if not (String.equal expected_context "") then
     check string "test context" expected_context (Pprint.string_of_context ctx);

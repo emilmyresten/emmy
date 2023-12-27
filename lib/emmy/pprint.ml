@@ -44,7 +44,7 @@ and string_of_binop binop =
 
 and string_of_expr expr =
   match expr with
-  | Def (id, expr) -> Printf.sprintf "(def %s %s)" id (string_of_expr expr)
+  | Def (id, expr) -> Printf.sprintf "(def %s %s)\n" id (string_of_expr expr)
   | Identifier id -> Printf.sprintf "Identifier %s" id
   | Invoke (to_apply, args) ->
       Printf.sprintf "%s %s" (string_of_expr to_apply)
@@ -61,10 +61,27 @@ and string_of_expr expr =
       Printf.sprintf "(do (%s) %s)" (string_of_expr unit_expr)
         (string_of_expr actual_expr)
   | Binop (op, lhs, rhs) -> string_of_binop (op, lhs, rhs)
-  | Fn (params, expr) -> string_of_val (Fn (params, expr))
   | List exprs -> Printf.sprintf "[%s]" (string_of_expr_list exprs)
-  | Number _ | String _ | True | False | Unit -> string_of_val expr
+  | Fn (_, _) | Number _ | String _ | True | False | Unit -> string_of_val expr
 
 and string_of_context ctx =
-  List.map ~f:(fun (k, v) -> Printf.sprintf "%s = %s\n" k (string_of_val v)) ctx
+  List.map
+    ~f:(fun (k, v) -> Printf.sprintf "%s = %s\n" k (string_of_expr v))
+    ctx
   |> String.concat ~sep:""
+
+and string_of_namespace namespace =
+  match namespace with
+  | Namespace (name, requires, exprs) ->
+      Printf.sprintf "(namespace %s" name
+      ^ (match requires with
+        | Some reqs -> "\n\t(requires " ^ String.concat ~sep:" " reqs
+        | None -> "")
+      ^ ")\n" ^ string_of_expr_list exprs
+
+and string_of_program program =
+  match program with
+  | Program namespaces ->
+      List.fold
+        ~f:(fun acc ns -> acc ^ string_of_namespace ns)
+        ~init:"" namespaces

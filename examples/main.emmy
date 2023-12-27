@@ -1,6 +1,9 @@
-(import 
-    ./examples/fib
-    ./examples/collatz)
+(namespace example
+    (requires ./examples/fib
+              ./examples/collatz
+              ./examples/directdep))
 
 (println (fib 10))
 (println (collatz 10))
+
+a
