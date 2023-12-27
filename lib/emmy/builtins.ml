@@ -9,7 +9,7 @@ let readfile_impl filename =
   List (List.map ~f:(fun str -> String str) lines)
 
 let println_impl args =
-  Io.printf (string_of_expr_list args);
+  printf "%s\n" (string_of_expr_list args);
   Unit
 
 let apply_builtin to_apply args =

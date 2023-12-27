@@ -2,6 +2,7 @@ open Base
 open Expressions
 open Tokens
 open Lexer
+open Io
 
 let eat expected chars =
   let token, chars = next_token chars in
@@ -182,7 +183,30 @@ and aux_parse_list_ds exprs chars =
       let expr, chars = do_parse chars in
       aux_parse_list_ds (expr :: exprs) chars
 
+let rec parse_imports chars =
+  try
+    let chars = eat LPAREN chars in
+    let chars = eat IMPORT chars in
+    let rec get_imports_aux source_files chars =
+      let token, chars = next_token chars in
+      match token with
+      | Token (IDENTIFIER_TOKEN filename, _) -> (
+          let source_file = source_file ~filename |> String.to_list in
+          let transitive_imports = parse_imports source_file in
+          match transitive_imports with
+          | Some (transitive_source_files, source_file) ->
+              get_imports_aux
+                (transitive_source_files @ source_file @ source_files)
+                chars
+          | None -> get_imports_aux (source_file @ source_files) chars)
+      | Token (RPAREN, _) -> Some (source_files, chars)
+      | _ -> None
+    in
+    get_imports_aux [] chars
+  with _ -> None
+
 let parse chars =
+  let imports = parse_imports chars in
   let rec parse_aux exprs chars =
     match peek chars with
     | Some _tok ->
@@ -192,4 +216,6 @@ let parse chars =
         let _ = eat EOF chars in
         Program (List.rev exprs)
   in
-  parse_aux [] chars
+  match imports with
+  | Some (imported_sources, chars) -> parse_aux [] (imported_sources @ chars)
+  | None -> parse_aux [] chars

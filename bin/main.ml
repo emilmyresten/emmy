@@ -17,10 +17,8 @@ let () =
     let input_file = List.hd !input_files in
     match input_file with
     | None -> ()
-    | Some f -> (
-        let program =
-          Io.read_lines (In_channel.create f) |> String.concat ~sep:"\n"
-        in
+    | Some filename -> (
+        let program = Io.source_file ~filename in
         try
           let eval, _ = Interpreter.eval_program program [] in
           match eval with

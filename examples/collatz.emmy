@@ -1,0 +1,13 @@
+(def collatz-impl
+    (fn x count ->
+        (cond
+            (= x 1) count
+            (= (% x 2) 0) 
+                (collatz-impl
+                    (/ x 2) 
+                    (+ count 1))
+            (collatz-impl
+                (+ (* 3 x) 1)
+                (+ count 1)))))
+
+(def collatz (fn x -> (collatz-impl x 0)))

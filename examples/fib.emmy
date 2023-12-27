@@ -1,0 +1,7 @@
+(def fib 
+    (fn x -> 
+        (cond 
+            (< x 3) 1 
+            (+ 
+                (fib (- x 1)) 
+                (fib (- x 2))))))

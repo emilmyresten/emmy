@@ -1,0 +1,6 @@
+(import 
+    ./examples/fib
+    ./examples/collatz)
+
+(println (fib 10))
+(println (collatz 10))

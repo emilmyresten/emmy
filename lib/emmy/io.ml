@@ -10,4 +10,7 @@ let read_lines in_channel =
   in
   List.rev (read_lines_aux [] in_channel)
 
-let printf str = printf "%s\n" str
+let source_file ~filename =
+  let has_extension = String.is_suffix filename ~suffix:".emmy" in
+  let filename = if has_extension then filename else filename ^ ".emmy" in
+  read_lines (In_channel.create filename) |> String.concat ~sep:"\n"
