@@ -1,5 +1,5 @@
 ### Emmy
-Tree-walking emmyreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
+Tree-walking interpreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
 
 ### Ongoing
 ---
