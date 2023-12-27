@@ -1,9 +1,9 @@
 ### Emmy
-Tree-walking emmyreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
+Tree-walking interpreter implementation of a LISP-type language implemented in OCaml. Toy project. Syntax inspired by Clojure. 
 
 ### Ongoing
 Module system: 
-- File paths do not resolve correctly (currently need to import using relative or absolute path). Should instead be relative to the file passed to the interpreter imo.
+- File paths do not resolve correctly (currently need to import using relative path from compilation root, or absolute path). Should instead be relative to the file passed to the interpreter imo.
 - All names should be namespaced. Right now all source files are summed up into the same character stream, and without renaming, conflicts will occur.
 - Detect cyclic dependencies. Currently such cycles will result in an infinite loop.
 - Enable importing specific definitions. Currently, only wildcard imports are possible (the entire source file is imported).
