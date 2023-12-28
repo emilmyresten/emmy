@@ -2,6 +2,7 @@ open Base
 open Expressions
 open Tokens
 open Lexer
+open Pprint
 open Io
 
 let eat expected chars =
@@ -226,19 +227,28 @@ and parse_requires chars =
   | _ -> (None, chars)
 
 and parse_namespaces chars =
-  let namespace = parse_namespace chars in
-  let load_namespaces_aux ~init:namespaces =
+  let dependency_graph = Hashtbl.create (module String) in
+  let rec parse_namespaces_aux chars =
+    let namespace = parse_namespace chars in
     match namespace with
-    | Namespace (_, None, _) -> namespaces
-    | Namespace (_, Some reqs, _) ->
+    | Namespace (_, None, _) -> [ namespace ]
+    | Namespace (name, Some reqs, _) ->
+        let _ =
+          match Hashtbl.find dependency_graph name with
+          | None -> Hashtbl.add dependency_graph ~key:name ~data:reqs
+          | Some _ ->
+              raise
+                (Failure
+                   (Printf.sprintf "Cyclic dependency to '%s':\n%s" name
+                      (string_of_dependency_graph dependency_graph)))
+        in
         List.fold
           ~f:(fun namespaces req ->
             let chars = source_file ~filename:req |> String.to_list in
-            parse_namespaces chars @ namespaces)
-          ~init:namespaces reqs
+            parse_namespaces_aux chars @ namespaces)
+          ~init:[ namespace ] reqs
   in
-  let namespaces = load_namespaces_aux ~init:[ namespace ] in
-  namespaces
+  parse_namespaces_aux chars
 
 let parse chars =
   let namespaces = parse_namespaces chars in

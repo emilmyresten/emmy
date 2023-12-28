@@ -85,3 +85,13 @@ and string_of_program program =
       List.fold
         ~f:(fun acc ns -> acc ^ string_of_namespace ns)
         ~init:"" namespaces
+
+let string_of_dependency_graph graph =
+  Hashtbl.fold graph ~init:"" ~f:(fun ~key ~data acc ->
+      let deps =
+        List.fold ~init:"{\n"
+          ~f:(fun acc dependency -> acc ^ "\t" ^ dependency ^ ",\n")
+          data
+        ^ "}"
+      in
+      acc ^ key ^ ": " ^ deps ^ ",\n")

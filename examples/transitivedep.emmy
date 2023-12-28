@@ -1,4 +1,5 @@
-(namespace transitive)
+(namespace transitive
+    (requires ./examples/transitivedep))
 
 
 (def transitive 1)
