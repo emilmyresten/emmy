@@ -1,5 +1,5 @@
 (namespace direct 
-    (requires ./examples/transitivedep))
+    (requires transitive))
 
 
 (def a (+ 1 transitive))

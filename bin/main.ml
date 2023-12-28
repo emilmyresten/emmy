@@ -18,7 +18,8 @@ let () =
     match input_file with
     | None -> ()
     | Some filename -> (
-        let program = Io.source_file ~filename in
+        Io.set_sources_path ~filename;
+        let program = Io.open_source_file filename in
         try
           let eval, _ = Interpreter.eval_program program [] in
           match eval with

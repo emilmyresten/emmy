@@ -1,9 +1,6 @@
-(namespace example
-    (requires ./examples/fib
-              ./examples/collatz
-              ./examples/directdep))
+(namespace main
+    (requires fib
+              collatz))
 
 (println (fib 10))
 (println (collatz 10))
-
-a

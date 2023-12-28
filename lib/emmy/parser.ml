@@ -3,7 +3,6 @@ open Expressions
 open Tokens
 open Lexer
 open Pprint
-open Io
 
 let eat expected chars =
   let token, chars = next_token chars in
@@ -244,7 +243,7 @@ and parse_namespaces chars =
         in
         List.fold
           ~f:(fun namespaces req ->
-            let chars = source_file ~filename:req |> String.to_list in
+            let chars = Io.get_char_stream ~namespace:req in
             parse_namespaces_aux chars @ namespaces)
           ~init:[ namespace ] reqs
   in
