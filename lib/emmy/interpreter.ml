@@ -166,16 +166,9 @@ and step expr ctx =
           failwith
             (Printf.sprintf "%s is not a function." (string_of_expr to_apply)))
   | Invoke (to_apply, args) when is_list_of_values args -> (
-      try
-        Stdio.printf "trying to find builtin\n";
-        (apply_builtin to_apply args ctx, ctx)
-        (* with Builtin_error e -> failwith "fail" *)
-      with
-      | Builtin_error e -> failwith e
-      | Arity_exn e -> failwith e
-      | e ->
-          Stdio.printf "%s\n" (Exn.to_string e);
-          (Invoke (fst (step to_apply ctx), args), ctx))
+      try (apply_builtin to_apply args ctx, ctx) with
+      | Builtin_error e | Arity_exn e -> failwith e
+      | _ -> (Invoke (fst (step to_apply ctx), args), ctx))
   | Invoke (to_apply, args) ->
       (Invoke (to_apply, List.map ~f:(fun m -> fst (step m ctx)) args), ctx)
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
