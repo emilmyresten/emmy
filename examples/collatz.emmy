@@ -1,4 +1,5 @@
-(namespace collatz)
+(namespace collatz
+    (requires fib))
 
 (def collatz-impl
     (fn x count ->

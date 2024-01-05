@@ -251,5 +251,5 @@ and parse_namespaces chars =
 
 let parse chars =
   let namespaces = parse_namespaces chars in
-  (* printf "%s\n" (string_of_program (Program namespaces)); *)
+  Stdio.printf "%s\n" (string_of_program (Program namespaces));
   Program namespaces

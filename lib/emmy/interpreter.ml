@@ -141,7 +141,7 @@ and alpha_convert scope replacements expr =
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
 
-let rec step expr ctx =
+and step expr ctx =
   match expr with
   | Identifier id ->
       let value = get_from_ctx id ctx in
@@ -166,8 +166,16 @@ let rec step expr ctx =
           failwith
             (Printf.sprintf "%s is not a function." (string_of_expr to_apply)))
   | Invoke (to_apply, args) when is_list_of_values args -> (
-      try (apply_builtin to_apply args, ctx)
-      with _ -> (Invoke (fst (step to_apply ctx), args), ctx))
+      try
+        Stdio.printf "trying to find builtin\n";
+        (apply_builtin to_apply args ctx, ctx)
+        (* with Builtin_error e -> failwith "fail" *)
+      with
+      | Builtin_error e -> failwith e
+      | Arity_exn e -> failwith e
+      | e ->
+          Stdio.printf "%s\n" (Exn.to_string e);
+          (Invoke (fst (step to_apply ctx), args), ctx))
   | Invoke (to_apply, args) ->
       (Invoke (to_apply, List.map ~f:(fun m -> fst (step m ctx)) args), ctx)
   | Binop (_, lhs, rhs) when is_value lhs && is_value rhs -> step_binop expr ctx
@@ -253,13 +261,41 @@ and lazy_step_cond (exprs, default) ctx =
   | [] -> (fst (step default ctx), ctx)
   | _ -> failwith "Cond-expression with uneven cases."
 
-let rec eval e ctx =
+and apply_builtin to_apply args ctx =
+  match to_apply with
+  | Identifier name -> (
+      match name with
+      | "println" ->
+          check_arity 1 args;
+          println_impl args
+      | "readfile" -> (
+          check_arity 1 args;
+          match List.hd args with
+          | Some (String filename) -> readfile_impl filename
+          | _ ->
+              raise
+                (Builtin_error "Filename passed to readfile must be string."))
+      | "eval" -> (
+          check_arity 1 args;
+          match List.hd args with
+          | Some (String meta_expr) ->
+              let nsed_expr = "(namespace meta_eval)\n" ^ meta_expr in
+              let res, _ = eval_program nsed_expr ctx in
+              res
+          | _ ->
+              raise
+                (Builtin_error "Meta-evaluation can only be done on strings."))
+      | _ ->
+          failwith (Printf.sprintf "No builtin function found for '%s'." name))
+  | _ -> failwith "Function application did not refer to Identifier."
+
+and eval e ctx =
   if is_value e then (e, ctx)
   else
     let stepped, ctx = step e ctx in
     eval stepped ctx
 
-let eval_program p initial_ctx =
+and eval_program p initial_ctx =
   let char_seq = String.to_list p in
   let program = Parser.parse char_seq in
   match program with
