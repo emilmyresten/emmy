@@ -256,6 +256,9 @@ let suite =
     (let do_test = "(def x (do (println \"hej\") 2)) x"
      and expected_result = "2" in
      (do_test, `Quick, simple_emmy_test do_test expected_result));
+    (let eval_test = "(def x 1) (eval \"(def y 1) (+ x y)\")"
+     and expected_result = "2" in
+     (eval_test, `Quick, simple_emmy_test eval_test expected_result));
   ]
 
 let emmy_tests () = Alcotest.run "Emmy" [ ("E2E", suite) ]
