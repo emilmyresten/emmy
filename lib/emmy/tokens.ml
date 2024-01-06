@@ -4,9 +4,9 @@ open Printf
 type current_position = { mutable row : int; mutable col : int }
 (* mutable but easiest way to keep track of cursor position in source. *)
 
-type token_position = Position of int * int
+type token_position = { row : int; col : int }
 
-type token_type =
+type token_kind =
   | LPAREN
   | RPAREN
   | LBRACKET
@@ -34,7 +34,7 @@ type token_type =
   | UNKNOWN of char
   | EOF
 
-type token = Token of token_type * token_position
+type token = { kind : token_kind; pos : token_position }
 
 let keywords =
   [
@@ -49,9 +49,9 @@ let keywords =
     ("requires", REQUIRES);
   ]
 
-let get_position = function Token (_, pos) -> pos
+let get_position = function token -> token.pos
 
-let string_of_token_type = function
+let string_of_token_kind = function
   | LPAREN -> "("
   | RPAREN -> ")"
   | LBRACKET -> "["
@@ -81,12 +81,11 @@ let string_of_token_type = function
   | UNKNOWN c -> sprintf "UNKNOWN %c" c
   | EOF -> "EOF"
 
-let string_of_token_pos = function
-  | Position (row, col) -> sprintf "(%d, %d)" row col
+let string_of_token_pos = function { row; col } -> sprintf "(%d, %d)" row col
 
-let string_of_token = function
-  | Token (tk, pos) ->
-      sprintf "%s, pos: %s" (string_of_token_type tk) (string_of_token_pos pos)
+let string_of_token token =
+  sprintf "%s, pos: %s"
+    (string_of_token_kind token.kind)
+    (string_of_token_pos token.pos)
 
-let get_row_col tok =
-  match get_position tok with Position (row, col) -> (row, col)
+let get_row_col tok = (tok.pos.row, tok.pos.col)

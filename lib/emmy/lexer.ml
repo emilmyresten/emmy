@@ -2,19 +2,20 @@ open Base
 open Extensions
 open Tokens
 
-let position = { row = 0; col = -1 }
+let current_position : current_position = { row = 0; col = -1 }
 
 let incr_row () =
-  position.row <- position.row + 1;
-  position.col <- -1
+  current_position.row <- current_position.row + 1;
+  current_position.col <- -1
 
-let incr_col () = position.col <- position.col + 1
+let incr_col () = current_position.col <- current_position.col + 1
 
 let reset_pos () =
-  position.row <- 0;
-  position.col <- -1
+  current_position.row <- 0;
+  current_position.col <- -1
 
-let reified_position () = Position (position.row, position.col)
+let reified_position () =
+  { row = current_position.row; col = current_position.col }
 
 let lex_number chars =
   let rec aux acc rem ~lexing_decimal_part =
@@ -31,12 +32,13 @@ let lex_number chars =
     | _ -> (Int.to_string acc, rem)
   in
   let number, rem = aux 0 chars ~lexing_decimal_part:false in
-  (Token (NUMBER_TOKEN (Float.of_string number), reified_position ()), rem)
+  ( { kind = NUMBER_TOKEN (Float.of_string number); pos = reified_position () },
+    rem )
 
 let lex_string chars =
   let rec aux acc rem =
     match rem with
-    | '"' :: t -> (Token (STRING_TOKEN acc, reified_position ()), t)
+    | '"' :: t -> ({ kind = STRING_TOKEN acc; pos = reified_position () }, t)
     | h :: t -> aux (acc ^ String.make 1 h) t
     | [] -> failwith "unmatched string"
   in
@@ -53,8 +55,8 @@ let lex_identifier_or_keyword chars =
   in
   let (parsed, pos), remaining = aux "" chars in
   match List.Assoc.find keywords ~equal:String.equal parsed with
-  | Some token_type -> (Token (token_type, pos), remaining)
-  | None -> (Token (IDENTIFIER_TOKEN parsed, pos), remaining)
+  | Some token_kind -> ({ kind = token_kind; pos }, remaining)
+  | None -> ({ kind = IDENTIFIER_TOKEN parsed; pos }, remaining)
 
 let rec next_token chars =
   incr_col ();
@@ -63,26 +65,26 @@ let rec next_token chars =
   | '\n' :: t ->
       incr_row ();
       next_token t
-  | '(' :: t -> (Token (LPAREN, reified_position ()), t)
-  | ')' :: t -> (Token (RPAREN, reified_position ()), t)
-  | '[' :: t -> (Token (LBRACKET, reified_position ()), t)
-  | ']' :: t -> (Token (RBRACKET, reified_position ()), t)
-  | '-' :: '>' :: t -> (Token (ARROW, reified_position ()), t)
-  | '+' :: t -> (Token (PLUS, reified_position ()), t)
-  | '-' :: t -> (Token (MINUS, reified_position ()), t)
-  | '*' :: t -> (Token (TIMES, reified_position ()), t)
-  | '/' :: t -> (Token (DIVISION, reified_position ()), t)
-  | '%' :: t -> (Token (MOD, reified_position ()), t)
-  | '=' :: ' ' :: t -> (Token (EQUALS, reified_position ()), t)
-  | '<' :: ' ' :: t -> (Token (LESS_THAN, reified_position ()), t)
+  | '(' :: t -> ({ kind = LPAREN; pos = reified_position () }, t)
+  | ')' :: t -> ({ kind = RPAREN; pos = reified_position () }, t)
+  | '[' :: t -> ({ kind = LBRACKET; pos = reified_position () }, t)
+  | ']' :: t -> ({ kind = RBRACKET; pos = reified_position () }, t)
+  | '-' :: '>' :: t -> ({ kind = ARROW; pos = reified_position () }, t)
+  | '+' :: t -> ({ kind = PLUS; pos = reified_position () }, t)
+  | '-' :: t -> ({ kind = MINUS; pos = reified_position () }, t)
+  | '*' :: t -> ({ kind = TIMES; pos = reified_position () }, t)
+  | '/' :: t -> ({ kind = DIVISION; pos = reified_position () }, t)
+  | '%' :: t -> ({ kind = MOD; pos = reified_position () }, t)
+  | '=' :: ' ' :: t -> ({ kind = EQUALS; pos = reified_position () }, t)
+  | '<' :: ' ' :: t -> ({ kind = LESS_THAN; pos = reified_position () }, t)
   | '"' :: t -> lex_string t
   | h :: t when not (Char.is_digit h || Char.is_whitespace h || Char.is_symbol h)
     ->
       lex_identifier_or_keyword (h :: t)
   | h :: t when Char.is_digit h -> lex_number (h :: t)
-  | h :: t -> (Token (UNKNOWN h, reified_position ()), t)
+  | h :: t -> ({ kind = UNKNOWN h; pos = reified_position () }, t)
   | [] ->
-      let ret = (Token (EOF, reified_position ()), []) in
+      let ret = ({ kind = EOF; pos = reified_position () }, []) in
       reset_pos ();
       ret
 

@@ -7,12 +7,12 @@ open Pprint
 let eat expected chars =
   let token, chars = next_token chars in
   match token with
-  | Token (tk, _) when Poly.(tk = expected) -> chars
+  | { kind; _ } when Poly.(kind = expected) -> chars
   | _ ->
       let row, col = get_row_col token in
       let err_msg =
         Printf.sprintf "Expected token %s, found token %s at %d, %d\n"
-          (string_of_token_type expected)
+          (string_of_token_kind expected)
           (string_of_token token) row col
       in
       raise (Failure err_msg)
@@ -20,7 +20,7 @@ let eat expected chars =
 let rec do_parse_expr chars =
   let token, chars = next_token chars in
   match token with
-  | Token (LPAREN, _) ->
+  | { kind = LPAREN; _ } ->
       let expr, chars =
         match peek chars with
         | Some DEF ->
@@ -63,17 +63,17 @@ let rec do_parse_expr chars =
       in
       let chars = eat RPAREN chars in
       (expr, chars)
-  | Token (LBRACKET, _) -> parse_list_ds chars
-  | Token (TRUE, _) -> (True, chars)
-  | Token (FALSE, _) -> (False, chars)
-  | Token (NUMBER_TOKEN v, _) -> (Number v, chars)
-  | Token (STRING_TOKEN str, _) -> (String str, chars)
-  | Token (IDENTIFIER_TOKEN id, _) -> (Identifier id, chars)
-  | Token (UNKNOWN c, Position (row, col)) ->
+  | { kind = LBRACKET; _ } -> parse_list_ds chars
+  | { kind = TRUE; _ } -> (True, chars)
+  | { kind = FALSE; _ } -> (False, chars)
+  | { kind = NUMBER_TOKEN v; _ } -> (Number v, chars)
+  | { kind = STRING_TOKEN str; _ } -> (String str, chars)
+  | { kind = IDENTIFIER_TOKEN id; _ } -> (Identifier id, chars)
+  | { kind = UNKNOWN c; pos } ->
       let err_msg =
         Printf.sprintf "Found %s at %d, %d\n"
-          (string_of_token_type (UNKNOWN c))
-          row col
+          (string_of_token_kind (UNKNOWN c))
+          pos.row pos.col
       in
       failwith err_msg
   | tk -> failwith (Printf.sprintf "Unexpected token %s " (string_of_token tk))
@@ -85,7 +85,7 @@ and parse_list_ds chars =
 and parse_def_expr chars =
   let id, chars =
     match next_token chars with
-    | Token (IDENTIFIER_TOKEN id, _), chars -> (id, chars)
+    | { kind = IDENTIFIER_TOKEN id; _ }, chars -> (id, chars)
     | tk ->
         failwith
           (Printf.sprintf "Expected Identifier, found %s "
@@ -147,7 +147,7 @@ and parse_fn_expr chars =
     | Some (IDENTIFIER_TOKEN _) -> (
         let param, chars = next_token chars in
         match param with
-        | Token (IDENTIFIER_TOKEN id, _) ->
+        | { kind = IDENTIFIER_TOKEN id; _ } ->
             get_params_aux (id :: params_acc) chars
         | _ ->
             failwith
@@ -200,7 +200,7 @@ let rec parse_namespace chars =
         List.rev exprs
   in
   match name with
-  | Token (IDENTIFIER_TOKEN ns, _) ->
+  | { kind = IDENTIFIER_TOKEN ns; _ } ->
       Namespace (ns, requires, parse_exprs_aux [] chars)
   | t ->
       let err_msg =
@@ -217,9 +217,9 @@ and parse_requires chars =
       let rec get_requires_aux requires chars =
         let token, chars = next_token chars in
         match token with
-        | Token (IDENTIFIER_TOKEN filename, _) ->
+        | { kind = IDENTIFIER_TOKEN filename; _ } ->
             get_requires_aux (filename :: requires) chars
-        | Token (RPAREN, _) -> (Some (List.rev requires), chars)
+        | { kind = RPAREN; _ } -> (Some (List.rev requires), chars)
         | _ -> (None, chars)
       in
       get_requires_aux [] chars
