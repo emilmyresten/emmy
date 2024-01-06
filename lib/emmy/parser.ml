@@ -4,6 +4,8 @@ open Tokens
 open Lexer
 open Pprint
 
+let current_namespace : string ref = ref ""
+
 let eat expected chars =
   let token, chars = next_token chars in
   match token with
@@ -20,55 +22,61 @@ let eat expected chars =
 let rec do_parse_expr chars =
   let token, chars = next_token chars in
   match token with
-  | { kind = LPAREN; _ } ->
+  | { kind = LPAREN; pos } ->
       let expr, chars =
         match peek chars with
         | Some DEF ->
             let chars = eat DEF chars in
-            parse_def_expr chars
+            parse_def_expr chars pos
         | Some PLUS ->
             let chars = eat PLUS chars in
-            parse_binop_expr Plus chars
+            parse_binop_expr Plus chars pos
         | Some MINUS ->
             let chars = eat MINUS chars in
-            parse_binop_expr Minus chars
+            parse_binop_expr Minus chars pos
         | Some TIMES ->
             let chars = eat TIMES chars in
-            parse_binop_expr Times chars
+            parse_binop_expr Times chars pos
         | Some DIVISION ->
             let chars = eat DIVISION chars in
-            parse_binop_expr Division chars
+            parse_binop_expr Division chars pos
         | Some MOD ->
             let chars = eat MOD chars in
-            parse_binop_expr Mod chars
+            parse_binop_expr Mod chars pos
         | Some EQUALS ->
             let chars = eat EQUALS chars in
-            parse_binop_expr Equals chars
+            parse_binop_expr Equals chars pos
         | Some LESS_THAN ->
             let chars = eat LESS_THAN chars in
-            parse_binop_expr LessThan chars
+            parse_binop_expr LessThan chars pos
         | Some COND ->
             let chars = eat COND chars in
-            parse_cond_expr chars
+            parse_cond_expr chars pos
         | Some LET ->
             let chars = eat LET chars in
-            parse_let_expr chars
+            parse_let_expr chars pos
         | Some DO ->
             let chars = eat DO chars in
-            parse_do_expr chars
+            parse_do_expr chars pos
         | Some FN ->
             let chars = eat FN chars in
-            parse_fn_expr chars
-        | _ -> parse_invoke_expr chars
+            parse_fn_expr chars pos
+        | _ -> parse_invoke_expr chars pos
       in
       let chars = eat RPAREN chars in
       (expr, chars)
-  | { kind = LBRACKET; _ } -> parse_list_ds chars
-  | { kind = TRUE; _ } -> (True, chars)
-  | { kind = FALSE; _ } -> (False, chars)
-  | { kind = NUMBER_TOKEN v; _ } -> (Number v, chars)
-  | { kind = STRING_TOKEN str; _ } -> (String str, chars)
-  | { kind = IDENTIFIER_TOKEN id; _ } -> (Identifier id, chars)
+  | { kind = LBRACKET; pos } -> parse_list_ds chars pos
+  | { kind = TRUE; pos } ->
+      ({ expression = True; pos; namespace = !current_namespace }, chars)
+  | { kind = FALSE; pos } ->
+      ({ expression = False; pos; namespace = !current_namespace }, chars)
+  | { kind = NUMBER_TOKEN v; pos } ->
+      ({ expression = Number v; pos; namespace = !current_namespace }, chars)
+  | { kind = STRING_TOKEN str; pos } ->
+      ({ expression = String str; pos; namespace = !current_namespace }, chars)
+  | { kind = IDENTIFIER_TOKEN id; pos } ->
+      ( { expression = Identifier id; pos; namespace = !current_namespace },
+        chars )
   | { kind = UNKNOWN c; pos } ->
       let err_msg =
         Printf.sprintf "Found %s at %d, %d\n"
@@ -78,11 +86,20 @@ let rec do_parse_expr chars =
       failwith err_msg
   | tk -> failwith (Printf.sprintf "Unexpected token %s " (string_of_token tk))
 
-and parse_list_ds chars =
-  let exprs, chars = aux_parse_list_ds [] chars in
-  (List exprs, chars)
+and aux_parse_list_ds exprs chars =
+  match peek chars with
+  | Some RBRACKET ->
+      let chars = eat RBRACKET chars in
+      (List.rev exprs, chars)
+  | _ ->
+      let expr, chars = do_parse_expr chars in
+      aux_parse_list_ds (expr :: exprs) chars
 
-and parse_def_expr chars =
+and parse_list_ds chars pos =
+  let exprs, chars = aux_parse_list_ds [] chars in
+  ({ expression = List exprs; pos; namespace = !current_namespace }, chars)
+
+and parse_def_expr chars pos =
   let id, chars =
     match next_token chars with
     | { kind = IDENTIFIER_TOKEN id; _ }, chars -> (id, chars)
@@ -92,24 +109,25 @@ and parse_def_expr chars =
              (string_of_token (fst tk)))
   in
   let expr, chars = do_parse_expr chars in
-  (Def (id, expr), chars)
+  ({ expression = Def (id, expr); pos; namespace = !current_namespace }, chars)
 
-and parse_binop_expr op chars =
+and parse_binop_expr op chars pos =
   let lhs, chars = do_parse_expr chars in
   let rhs, chars = do_parse_expr chars in
-  (Binop (op, lhs, rhs), chars)
+  ( { expression = Binop (op, lhs, rhs); pos; namespace = !current_namespace },
+    chars )
 
-and parse_let_expr chars =
+and parse_let_expr chars pos =
   let chars = eat LBRACKET chars in
   let rec parse_let_aux bindings chars =
     let id, chars = do_parse_expr chars in
     let id_str =
       match id with
-      | Identifier id -> id
+      | { expression = Identifier id; _ } -> id
       | _ ->
           failwith
             (Printf.sprintf "lhs in let-binding must be identifier, found %s."
-               (Pprint.string_of_expr id))
+               (Pprint.string_of_expr id.expression))
     in
     let expr, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RBRACKET) then
@@ -119,20 +137,36 @@ and parse_let_expr chars =
   in
   let bindings, chars = parse_let_aux [] chars in
   let expr, chars = do_parse_expr chars in
-  (LetBinding (bindings, expr), chars)
+  ( {
+      expression = LetBinding (bindings, expr);
+      pos;
+      namespace = !current_namespace;
+    },
+    chars )
 
-and parse_do_expr chars =
+and parse_do_expr chars pos =
   let unit_expr, chars = do_parse_expr chars in
   let actual_expr, chars = do_parse_expr chars in
-  (Do (unit_expr, actual_expr), chars)
+  ( {
+      expression = Do (unit_expr, actual_expr);
+      pos;
+      namespace = !current_namespace;
+    },
+    chars )
 
-and parse_cond_expr chars =
+and parse_cond_expr chars pos =
   let rec parse_cond_aux exprs chars =
     let case, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RPAREN) then
       if List.length exprs % 2 = 1 then
         failwith "Must provide default case for cond-expression"
-      else (Cond (List.rev exprs, case), chars)
+      else
+        ( {
+            expression = Cond (List.rev exprs, case);
+            pos;
+            namespace = !current_namespace;
+          },
+          chars )
     else
       let expr, chars = do_parse_expr chars in
       if Poly.(peek chars = Some RPAREN) then
@@ -141,7 +175,7 @@ and parse_cond_expr chars =
   in
   parse_cond_aux [] chars
 
-and parse_fn_expr chars =
+and parse_fn_expr chars pos =
   let rec get_params_aux params_acc chars =
     match peek chars with
     | Some (IDENTIFIER_TOKEN _) -> (
@@ -158,12 +192,14 @@ and parse_fn_expr chars =
   let params, chars = get_params_aux [] chars in
   let chars = eat ARROW chars in
   let expr, chars = do_parse_expr chars in
-  (Fn (params, expr), chars)
+  ( { expression = Fn (params, expr); pos; namespace = !current_namespace },
+    chars )
 
-and parse_invoke_expr chars =
+and parse_invoke_expr chars pos =
   let to_apply, chars = do_parse_expr chars in
   let args, chars = aux_parse_arg_list [] chars in
-  (Invoke (to_apply, args), chars)
+  ( { expression = Invoke (to_apply, args); pos; namespace = !current_namespace },
+    chars )
 
 and aux_parse_arg_list args chars =
   match peek chars with
@@ -173,15 +209,6 @@ and aux_parse_arg_list args chars =
   | _ ->
       let arg, chars = do_parse_expr chars in
       aux_parse_arg_list (arg :: args) chars
-
-and aux_parse_list_ds exprs chars =
-  match peek chars with
-  | Some RBRACKET ->
-      let chars = eat RBRACKET chars in
-      (List.rev exprs, chars)
-  | _ ->
-      let expr, chars = do_parse_expr chars in
-      aux_parse_list_ds (expr :: exprs) chars
 
 let rec parse_namespace chars =
   let chars = eat LPAREN chars in
@@ -201,6 +228,7 @@ let rec parse_namespace chars =
   in
   match name with
   | { kind = IDENTIFIER_TOKEN ns; _ } ->
+      current_namespace := ns;
       Namespace (ns, requires, parse_exprs_aux [] chars)
   | t ->
       let err_msg =

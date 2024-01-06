@@ -11,8 +11,8 @@ let rec loop ctx cmd_history =
     let eval, ctx = Interpreter.eval_program nsed_read ctx in
     let () =
       match eval with
-      | Expressions.Unit -> ()
-      | _ -> iprint_format "%s\n" (Pprint.string_of_expr eval)
+      | { expression = Expressions.Unit; _ } -> ()
+      | _ -> iprint_format "%s\n" (Pprint.string_of_expr eval.expression)
     in
     (* Term.iprint "Context:\n";
        Term.iprint (Pprint.string_of_context ctx); *)

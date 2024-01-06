@@ -23,6 +23,6 @@ let () =
         try
           let eval, _ = Interpreter.eval_program program [] in
           match eval with
-          | Expressions.Unit -> ()
-          | _ -> printf "%s\n" (Pprint.string_of_expr eval)
+          | { expression = Expressions.Unit; _ } -> ()
+          | _ -> printf "%s\n" (Pprint.string_of_expr eval.expression)
         with e -> printf "%s\n" (Exn.to_string e))

@@ -1,9 +1,9 @@
 val eval :
-  Expressions.expression ->
-  (string * Expressions.expression) list ->
-  Expressions.expression * (string * Expressions.expression) list
+  Expressions.ast_node ->
+  (string * Expressions.ast_node) list ->
+  Expressions.ast_node * (string * Expressions.ast_node) list
 
 val eval_program :
   string ->
-  (string * Expressions.expression) list ->
-  Expressions.expression * (string * Expressions.expression) list
+  (string * Expressions.ast_node) list ->
+  Expressions.ast_node * (string * Expressions.ast_node) list

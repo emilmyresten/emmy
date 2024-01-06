@@ -4,7 +4,7 @@ open Printf
 type current_position = { mutable row : int; mutable col : int }
 (* mutable but easiest way to keep track of cursor position in source. *)
 
-type token_position = { row : int; col : int }
+type position = { row : int; col : int }
 
 type token_kind =
   | LPAREN
@@ -34,7 +34,7 @@ type token_kind =
   | UNKNOWN of char
   | EOF
 
-type token = { kind : token_kind; pos : token_position }
+type token = { kind : token_kind; pos : position }
 
 let keywords =
   [

@@ -8,7 +8,8 @@ let simple_emmy_test ?(expected_context = "") in_program expected_result () =
   let expected_eval = expected_result in
   if not (String.equal expected_context "") then
     check string "test context" expected_context (Pprint.string_of_context ctx);
-  check string "test return value" expected_eval (Pprint.string_of_expr eval)
+  check string "test return value" expected_eval
+    (Pprint.string_of_expr eval.expression)
 
 (* `Quick marks it as a fast running test, can be ran every time.
    the alternative is `Slow, that can be suppressed. Unclear how to do that using dune. *)
