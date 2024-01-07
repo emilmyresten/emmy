@@ -22,8 +22,8 @@ let rec get_unique_name p bindings =
     get_unique_name p bindings
   else name_attempt
 
-let rec beta_reduce param_ids replacements expr =
-  match expr.expression with
+let rec beta_reduce param_ids replacements node =
+  match node.expression with
   | Identifier id ->
       if List.exists param_ids ~f:(fun param_id -> Poly.(param_id = id)) then
         let param_position_opt =
@@ -32,7 +32,7 @@ let rec beta_reduce param_ids replacements expr =
         match param_position_opt with
         | Some pos -> (
             match List.nth replacements pos with
-            | Some arg -> { expr with expression = arg }
+            | Some arg -> { node with expression = arg }
             | None ->
                 failwith
                   (Printf.sprintf
@@ -46,81 +46,82 @@ let rec beta_reduce param_ids replacements expr =
                  "Identifier %s is member of the parameter list, but couldn't \
                   find index during beta-reduction."
                  id)
-      else expr
-  | Def (id, expr) ->
+      else node
+  | Def (id, inner_node) ->
       {
-        expr with
-        expression = Def (id, beta_reduce param_ids replacements expr);
+        node with
+        expression = Def (id, beta_reduce param_ids replacements inner_node);
       }
-  | Fn (params, expr) ->
+  | Fn (params, body) ->
       {
-        expr with
-        expression = Fn (params, beta_reduce param_ids replacements expr);
+        node with
+        expression = Fn (params, beta_reduce param_ids replacements body);
       }
   | Invoke (to_apply, args) ->
       {
-        expr with
+        node with
         expression =
           Invoke
             (to_apply, List.map ~f:(beta_reduce param_ids replacements) args);
       }
   | Binop (op, lhs, rhs) ->
       {
-        expr with
+        node with
         expression =
           Binop
             ( op,
               beta_reduce param_ids replacements lhs,
               beta_reduce param_ids replacements rhs );
       }
-  | List exprs ->
+  | List nodes ->
       {
-        expr with
+        node with
         expression =
-          List (List.map ~f:(beta_reduce param_ids replacements) exprs);
+          List (List.map ~f:(beta_reduce param_ids replacements) nodes);
       }
-  | True | False | Number _ | String _ | Unit -> expr
-  | Cond (exprs, default) ->
+  | True | False | Number _ | String _ | Unit -> node
+  | Cond (nodes, default) ->
       {
-        expr with
+        node with
         expression =
           Cond
-            ( List.map ~f:(beta_reduce param_ids replacements) exprs,
+            ( List.map ~f:(beta_reduce param_ids replacements) nodes,
               beta_reduce param_ids replacements default );
       }
-  | LetBinding (bindings, expr) ->
+  | LetBinding (bindings, inner_node) ->
       let beta_reduced_bindings =
         List.map
-          ~f:(fun (id, expr) -> (id, beta_reduce param_ids replacements expr))
+          ~f:(fun (id, node) -> (id, beta_reduce param_ids replacements node))
           bindings
       in
       {
-        expr with
+        node with
         expression =
           LetBinding
-            (beta_reduced_bindings, beta_reduce param_ids replacements expr);
+            ( beta_reduced_bindings,
+              beta_reduce param_ids replacements inner_node );
       }
-  | Do (unit_expr, actual_expr) ->
+  | Do (unit_node, actual_node) ->
       {
-        expr with
+        node with
         expression =
           Do
-            ( beta_reduce param_ids replacements unit_expr,
-              beta_reduce param_ids replacements actual_expr );
+            ( beta_reduce param_ids replacements unit_node,
+              beta_reduce param_ids replacements actual_node );
       }
 
-and alpha_convert scope replacements expr =
+and alpha_convert scope replacements node =
   (* [bindings: list of seen bindings.
       replace: look in this associative list/map to find replacement names for the current.]*)
   (* Rename nested identifiers to resolve scope conflicts.
      As soon as bindings occur in two scopes, all subsequent have to be renamed to the binding of the nearest scope. *)
-  match expr.expression with
+  match node.expression with
   | Identifier id -> (
       match List.Assoc.find replacements id ~equal:String.equal with
-      | Some name -> { expr with expression = Identifier name }
-      | None -> expr)
-  | Def (_, expr) -> alpha_convert scope replacements expr
-  | Fn (params, expr) ->
+      | Some name -> { node with expression = Identifier name }
+      | None -> node)
+  | Def (_, inner_node) -> alpha_convert scope replacements inner_node
+  | Fn (params, body) ->
       let conflicts = List.overlap scope params in
       (* replace these *)
       let bind = List.unique_right scope params in
@@ -134,12 +135,12 @@ and alpha_convert scope replacements expr =
       let new_params = List.map ~f:(fun (_, v) -> v) new_replace @ bind in
       let new_scope = new_params @ bind @ scope in
       {
-        expr with
-        expression = Fn (new_params, alpha_convert new_scope new_replace expr);
+        node with
+        expression = Fn (new_params, alpha_convert new_scope new_replace body);
       }
   | Invoke (to_apply, args) ->
       {
-        expr with
+        node with
         expression =
           Invoke
             ( alpha_convert scope replacements to_apply,
@@ -147,28 +148,28 @@ and alpha_convert scope replacements expr =
       }
   | Binop (op, lhs, rhs) ->
       {
-        expr with
+        node with
         expression =
           Binop
             ( op,
               alpha_convert scope replacements lhs,
               alpha_convert scope replacements rhs );
       }
-  | List exprs ->
+  | List nodes ->
       {
-        expr with
-        expression = List (List.map ~f:(alpha_convert scope replacements) exprs);
+        node with
+        expression = List (List.map ~f:(alpha_convert scope replacements) nodes);
       }
-  | True | False | Number _ | String _ | Unit -> expr
-  | Cond (exprs, default) ->
+  | True | False | Number _ | String _ | Unit -> node
+  | Cond (nodes, default) ->
       {
-        expr with
+        node with
         expression =
           Cond
-            ( List.map ~f:(alpha_convert scope replacements) exprs,
+            ( List.map ~f:(alpha_convert scope replacements) nodes,
               alpha_convert scope replacements default );
       }
-  | LetBinding (bnds, expr) ->
+  | LetBinding (bnds, inner_node) ->
       let bindings = List.map ~f:(fun (id, _) -> id) bnds in
       let conflicts = List.overlap scope bindings in
       let bind = List.unique_right scope bindings in
@@ -188,17 +189,17 @@ and alpha_convert scope replacements expr =
       in
       let new_scope = new_let_bindings @ bind @ scope in
       {
-        expr with
+        node with
         expression =
-          LetBinding (new_bnds, alpha_convert new_scope new_replace expr);
+          LetBinding (new_bnds, alpha_convert new_scope new_replace inner_node);
       }
-  | Do (unit_expr, actual_expr) ->
+  | Do (unit_node, actual_node) ->
       {
-        expr with
+        node with
         expression =
           Do
-            ( alpha_convert scope replacements unit_expr,
-              alpha_convert scope replacements actual_expr );
+            ( alpha_convert scope replacements unit_node,
+              alpha_convert scope replacements actual_node );
       }
 
 (* let map_of_params params = List.map (fun p -> (p, Identifier p)) params *)
@@ -213,7 +214,7 @@ and step expr ctx =
   | Def (id, expr) ->
       let stepped, new_ctx = step expr ctx in
       ({ expr with expression = Def (id, stepped) }, new_ctx)
-  | Fn (params, expr) -> ({ expr with expression = Fn (params, expr) }, ctx)
+  | Fn (params, body) -> ({ expr with expression = Fn (params, body) }, ctx)
   | Invoke (to_apply, args) when is_value to_apply && is_list_of_values args
     -> (
       match to_apply.expression with

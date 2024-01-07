@@ -23,7 +23,7 @@ let rec do_parse_expr chars =
   let token, chars = next_token chars in
   match token with
   | { kind = LPAREN; pos } ->
-      let expr, chars =
+      let node, chars =
         match peek chars with
         | Some DEF ->
             let chars = eat DEF chars in
@@ -64,7 +64,7 @@ let rec do_parse_expr chars =
         | _ -> parse_invoke_expr chars pos
       in
       let chars = eat RPAREN chars in
-      (expr, chars)
+      (node, chars)
   | { kind = LBRACKET; pos } -> parse_list_ds chars pos
   | { kind = TRUE; pos } ->
       ({ expression = True; pos; namespace = !current_namespace }, chars)
@@ -86,18 +86,18 @@ let rec do_parse_expr chars =
       failwith err_msg
   | tk -> failwith (Printf.sprintf "Unexpected token %s " (string_of_token tk))
 
-and aux_parse_list_ds exprs chars =
+and aux_parse_list_ds nodes chars =
   match peek chars with
   | Some RBRACKET ->
       let chars = eat RBRACKET chars in
-      (List.rev exprs, chars)
+      (List.rev nodes, chars)
   | _ ->
-      let expr, chars = do_parse_expr chars in
-      aux_parse_list_ds (expr :: exprs) chars
+      let node, chars = do_parse_expr chars in
+      aux_parse_list_ds (node :: nodes) chars
 
 and parse_list_ds chars pos =
-  let exprs, chars = aux_parse_list_ds [] chars in
-  ({ expression = List exprs; pos; namespace = !current_namespace }, chars)
+  let nodes, chars = aux_parse_list_ds [] chars in
+  ({ expression = List nodes; pos; namespace = !current_namespace }, chars)
 
 and parse_def_expr chars pos =
   let id, chars =
@@ -108,8 +108,8 @@ and parse_def_expr chars pos =
           (Printf.sprintf "Expected Identifier, found %s "
              (string_of_token (fst tk)))
   in
-  let expr, chars = do_parse_expr chars in
-  ({ expression = Def (id, expr); pos; namespace = !current_namespace }, chars)
+  let node, chars = do_parse_expr chars in
+  ({ expression = Def (id, node); pos; namespace = !current_namespace }, chars)
 
 and parse_binop_expr op chars pos =
   let lhs, chars = do_parse_expr chars in
@@ -129,49 +129,49 @@ and parse_let_expr chars pos =
             (Printf.sprintf "lhs in let-binding must be identifier, found %s."
                (Pprint.string_of_expr id.expression))
     in
-    let expr, chars = do_parse_expr chars in
+    let node, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RBRACKET) then
       let chars = eat RBRACKET chars in
-      ((id_str, expr) :: bindings, chars)
-    else parse_let_aux ((id_str, expr) :: bindings) chars
+      ((id_str, node) :: bindings, chars)
+    else parse_let_aux ((id_str, node) :: bindings) chars
   in
   let bindings, chars = parse_let_aux [] chars in
-  let expr, chars = do_parse_expr chars in
+  let node, chars = do_parse_expr chars in
   ( {
-      expression = LetBinding (bindings, expr);
+      expression = LetBinding (bindings, node);
       pos;
       namespace = !current_namespace;
     },
     chars )
 
 and parse_do_expr chars pos =
-  let unit_expr, chars = do_parse_expr chars in
-  let actual_expr, chars = do_parse_expr chars in
+  let unit_node, chars = do_parse_expr chars in
+  let actual_node, chars = do_parse_expr chars in
   ( {
-      expression = Do (unit_expr, actual_expr);
+      expression = Do (unit_node, actual_node);
       pos;
       namespace = !current_namespace;
     },
     chars )
 
 and parse_cond_expr chars pos =
-  let rec parse_cond_aux exprs chars =
+  let rec parse_cond_aux nodes chars =
     let case, chars = do_parse_expr chars in
     if Poly.(peek chars = Some RPAREN) then
-      if List.length exprs % 2 = 1 then
+      if List.length nodes % 2 = 1 then
         failwith "Must provide default case for cond-expression"
       else
         ( {
-            expression = Cond (List.rev exprs, case);
+            expression = Cond (List.rev nodes, case);
             pos;
             namespace = !current_namespace;
           },
           chars )
     else
-      let expr, chars = do_parse_expr chars in
+      let node, chars = do_parse_expr chars in
       if Poly.(peek chars = Some RPAREN) then
         failwith "Must provide default case for cond-expression"
-      else parse_cond_aux (expr :: case :: exprs) chars
+      else parse_cond_aux (node :: case :: nodes) chars
   in
   parse_cond_aux [] chars
 
@@ -191,8 +191,8 @@ and parse_fn_expr chars pos =
   in
   let params, chars = get_params_aux [] chars in
   let chars = eat ARROW chars in
-  let expr, chars = do_parse_expr chars in
-  ( { expression = Fn (params, expr); pos; namespace = !current_namespace },
+  let body, chars = do_parse_expr chars in
+  ( { expression = Fn (params, body); pos; namespace = !current_namespace },
     chars )
 
 and parse_invoke_expr chars pos =
@@ -217,14 +217,14 @@ let rec parse_namespace chars =
   let requires, chars = parse_requires chars in
 
   let chars = eat RPAREN chars in
-  let rec parse_exprs_aux exprs chars =
+  let rec parse_exprs_aux nodes chars =
     match peek chars with
     | Some _tok ->
-        let expr, rem = do_parse_expr chars in
-        parse_exprs_aux (expr :: exprs) rem
+        let node, rem = do_parse_expr chars in
+        parse_exprs_aux (node :: nodes) rem
     | None ->
         let _ = eat EOF chars in
-        List.rev exprs
+        List.rev nodes
   in
   match name with
   | { kind = IDENTIFIER_TOKEN ns; _ } ->
